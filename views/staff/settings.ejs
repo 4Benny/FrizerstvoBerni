@@ -1,0 +1,207 @@
+<%- include('partials/head') %>
+
+<div class="page-head"><h1>Nastavitve salona</h1></div>
+<p class="page-sub">Spletna stran prevzame vse s te strani. V kodi ni treba spreminjati ničesar.</p>
+
+<% if (error) { %><div class="flash flash-error" role="alert"><%= error %></div><% } %>
+
+<form method="post" action="/app/settings">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <section class="card form">
+    <h2>Salon</h2>
+    <div class="field">
+      <label for="salon_name">Ime salona *</label>
+      <input id="salon_name" name="salon_name" type="text" required value="<%= values.salon_name %>">
+    </div>
+    <div class="field">
+      <label for="slogan">Kratek slogan</label>
+      <input id="slogan" name="slogan" type="text" value="<%= values.slogan %>"
+             placeholder="Frizerske storitve">
+    </div>
+    <div class="field">
+      <label for="about">Predstavitev</label>
+      <textarea id="about" name="about" rows="8"><%= values.about %></textarea>
+      <p class="hint">Prazna vrstica loči odstavke.</p>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label for="logo_url">Logotip</label>
+        <input id="logo_url" name="logo_url" type="text" value="<%= values.logo_url %>"
+               placeholder="/img/logo.png">
+        <p class="hint">Prikaže se namesto imena salona. Če je prazno, se izpiše ime.</p>
+      </div>
+      <div class="field">
+        <label for="emblem_url">Znak</label>
+        <input id="emblem_url" name="emblem_url" type="text" value="<%= values.emblem_url %>"
+               placeholder="/img/emblem.jpg">
+        <p class="hint">Neobvezna okrogla slika na spletni strani.</p>
+      </div>
+    </div>
+    <% if (values.logo_url || values.emblem_url) { %>
+      <div class="logo-preview">
+        <% if (values.logo_url) { %><img src="<%= values.logo_url %>" alt="Predogled logotipa"><% } %>
+        <% if (values.emblem_url) { %>
+          <img class="is-round" src="<%= values.emblem_url %>" alt="Predogled znaka">
+        <% } %>
+      </div>
+    <% } %>
+  </section>
+
+  <section class="card form">
+    <h2>Kontakt</h2>
+    <div class="form-row">
+      <div class="field">
+        <label for="phone">Telefon</label>
+        <input id="phone" name="phone" type="tel" value="<%= values.phone %>" placeholder="+386 31 331 636">
+      </div>
+      <div class="field">
+        <label for="email">E-pošta</label>
+        <input id="email" name="email" type="email" value="<%= values.email %>">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label for="address">Naslov</label>
+        <input id="address" name="address" type="text" value="<%= values.address %>">
+      </div>
+      <div class="field">
+        <label for="city">Kraj</label>
+        <input id="city" name="city" type="text" value="<%= values.city %>">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label for="instagram">Povezava Instagram</label>
+        <input id="instagram" name="instagram" type="url" value="<%= values.instagram %>"
+               placeholder="https://instagram.com/…">
+      </div>
+      <div class="field">
+        <label for="facebook">Povezava Facebook</label>
+        <input id="facebook" name="facebook" type="url" value="<%= values.facebook %>"
+               placeholder="https://facebook.com/…">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label for="other_link_label">Naziv druge povezave</label>
+        <input id="other_link_label" name="other_link_label" type="text"
+               value="<%= values.other_link_label %>" placeholder="TikTok">
+      </div>
+      <div class="field">
+        <label for="other_link">Druga povezava</label>
+        <input id="other_link" name="other_link" type="url" value="<%= values.other_link %>">
+      </div>
+    </div>
+    <div class="field">
+      <label for="map_url">Povezava do zemljevida</label>
+      <input id="map_url" name="map_url" type="url" value="<%= values.map_url %>"
+             placeholder="https://maps.google.com/…">
+    </div>
+  </section>
+
+  <section class="card form">
+    <h2>Delovni čas</h2>
+    <p class="hint">
+      Prikaže se na spletni strani in določa, katere ure koledar poudari.
+      Za dan brez stalnega časa izberite <strong>Po dogovoru</strong> in vpišite svoje besedilo.
+    </p>
+
+    <div class="hours-editor">
+      <% hours.forEach(function (day) { %>
+        <div class="hours-day" data-hours-day>
+          <div class="hours-name"><%= day.name %></div>
+
+          <div class="hours-mode">
+            <label class="radio">
+              <input type="radio" name="mode_<%= day.day %>" value="open" data-hours-mode
+                     <%= day.mode === 'open' ? 'checked' : '' %>>
+              Odprto
+            </label>
+            <label class="radio">
+              <input type="radio" name="mode_<%= day.day %>" value="text" data-hours-mode
+                     <%= day.mode === 'text' ? 'checked' : '' %>>
+              Po dogovoru
+            </label>
+            <label class="radio">
+              <input type="radio" name="mode_<%= day.day %>" value="closed" data-hours-mode
+                     <%= day.mode === 'closed' ? 'checked' : '' %>>
+              Zaprto
+            </label>
+          </div>
+
+          <div class="hours-inputs">
+            <span class="hours-times" data-hours-times <%= day.mode === 'open' ? '' : 'hidden' %>>
+              <input type="time" name="open_<%= day.day %>"
+                     value="<%= day.open || '08:00' %>"
+                     aria-label="<%= day.name %> — odprtje">
+              <span aria-hidden="true">–</span>
+              <input type="time" name="close_<%= day.day %>"
+                     value="<%= day.close || '18:00' %>"
+                     aria-label="<%= day.name %> — zaprtje">
+            </span>
+            <input class="hours-text" type="text" name="text_<%= day.day %>"
+                   value="<%= day.text %>" maxlength="60"
+                   placeholder="Po dogovoru"
+                   aria-label="<%= day.name %> — besedilo"
+                   data-hours-text <%= day.mode === 'text' ? '' : 'hidden' %>>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  </section>
+
+  <section class="card form">
+    <h2>Koledar</h2>
+    <div class="form-row">
+      <div class="field">
+        <label for="calendar_start">Začetek koledarja</label>
+        <input id="calendar_start" name="calendar_start" type="time" required
+               value="<%= values.calendar_start %>">
+      </div>
+      <div class="field">
+        <label for="calendar_end">Konec koledarja</label>
+        <input id="calendar_end" name="calendar_end" type="time" required
+               value="<%= values.calendar_end %>">
+      </div>
+    </div>
+    <p class="hint">
+      Termin zunaj tega časa je še vedno viden — koledar se razširi, da ga prikaže.
+    </p>
+  </section>
+
+  <section class="card form">
+    <h2>Zvestoba</h2>
+    <div class="field">
+      <label for="paid_before_free">Število plačanih striženj do brezplačnega</label>
+      <input id="paid_before_free" name="paid_before_free" type="number" min="1" max="99"
+             required inputmode="numeric" value="<%= values.paid_before_free %>">
+      <p class="hint">
+        Pri vrednosti <strong><%= values.paid_before_free %></strong> stranka plača
+        <%= values.paid_before_free %> striženj, naslednje pa je brezplačno.
+      </p>
+    </div>
+  </section>
+
+  <section class="card form">
+    <h2>SMS obvestila</h2>
+    <label class="check">
+      <input type="checkbox" name="sms_enabled" value="1" <%= values.sms_enabled === '1' ? 'checked' : '' %>>
+      Pošlji SMS ob naročilu, prestavitvi in odpovedi
+    </label>
+    <p class="hint">
+      Aktivni prehod: <strong><%= smsDriver %></strong>.
+      <% if (smsDriver === 'log') { %>
+        Sporočila se zapišejo v dnevnik strežnika in shranijo v sistem, da lahko salon
+        preveri celoten potek. Za pošiljanje pravih sporočil nastavite
+        <code>SMS_DRIVER=twilio</code> in okoljske spremenljivke za Twilio.
+      <% } %>
+    </p>
+  </section>
+
+  <div class="form-actions form-actions-sticky">
+    <button type="submit" class="btn btn-primary" data-busy-text="Shranjujem…">Shrani nastavitve</button>
+  </div>
+</form>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,46 @@
+<%- include('partials/head') %>
+<%- include('partials/calendar-toolbar') %>
+
+<% const day = days[0]; %>
+
+<section class="cal-wrap cal-desktop">
+  <%- include('partials/calendar-grid', { days: days, window: window }) %>
+</section>
+
+<!-- On a phone the vertical grid is unusable, so the day becomes a list. -->
+<section class="cal-agenda">
+  <h2 class="agenda-title"><%= day.dayLong.toUpperCase() %> <%= day.display %></h2>
+  <% if (day.closed) { %>
+    <p class="agenda-closed">Ta dan je salon zaprt.</p>
+  <% } else if (!day.hasFixedHours) { %>
+    <p class="agenda-closed">Ta dan: <%= day.openLabel %>.</p>
+  <% } %>
+
+  <% if (!day.appointments.length) { %>
+    <p class="empty">Ta dan ni terminov.</p>
+  <% } else { %>
+    <ol class="agenda-list">
+      <% day.appointments
+           .slice()
+           .sort((a, b) => a.start_min - b.start_min)
+           .forEach(function (appt) { %>
+        <li class="agenda-item status-<%= appt.status %>">
+          <div class="agenda-time"><%= appt.start_time %></div>
+          <button type="button" class="agenda-body" data-appointment="<%= appt.id %>">
+            <span class="agenda-customer"><%= appt.customer_name %></span>
+            <span class="agenda-service"><%= appt.service_name %></span>
+            <span class="agenda-meta">
+              <%= appt.employee_name %> · <%= appt.start_time %>–<%= appt.end_time %>
+              <% if (appt.status !== 'scheduled') { %>
+                · <strong><%= appt.status_label %></strong>
+              <% } %>
+            </span>
+          </button>
+        </li>
+      <% }); %>
+    </ol>
+  <% } %>
+</section>
+
+<%- include('partials/appointment-data') %>
+<%- include('partials/foot') %>

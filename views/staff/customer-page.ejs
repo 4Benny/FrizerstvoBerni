@@ -1,0 +1,99 @@
+<%- include('partials/head') %>
+
+<p class="crumb"><a href="/app/customers">← Stranke</a></p>
+
+<div class="page-head">
+  <h1><%= util.fullName(customer) %><% if (!customer.active) { %> <span class="tag tag-muted">NEAKTIVNA</span><% } %></h1>
+  <div class="page-actions">
+    <button type="button" class="btn btn-primary" data-new-appointment
+            data-customer-id="<%= customer.id %>"
+            data-customer-name="<%= util.fullName(customer) %>"
+            data-customer-phone="<%= customer.phone %>"
+            data-customer-visits="<%= customer.visit_count %>"
+            data-date="<%= today %>">Nov termin</button>
+    <a class="btn" href="/app/customers/<%= customer.id %>/edit">Uredi stranko</a>
+  </div>
+</div>
+
+<div class="cols">
+  <section class="card">
+    <h2>Kontakt</h2>
+    <dl class="detail-list">
+      <div>
+        <dt>Telefon</dt>
+        <dd>
+          <% if (customer.phone) { %>
+            <a href="tel:<%= customer.phone.replace(/\s/g, '') %>"><%= customer.phone %></a>
+          <% } else { %><span class="muted">Ni zapisan</span><% } %>
+        </dd>
+      </div>
+      <div>
+        <dt>E-pošta</dt>
+        <dd>
+          <% if (customer.email) { %>
+            <a href="mailto:<%= customer.email %>"><%= customer.email %></a>
+          <% } else { %><span class="muted">Ni zapisana</span><% } %>
+        </dd>
+      </div>
+    </dl>
+
+    <h3>Opombe</h3>
+    <p class="notes-body"><%= customer.notes || '—' %></p>
+  </section>
+
+  <section class="card" id="visits" data-customer="<%= customer.id %>">
+    <h2>Obiski</h2>
+
+    <div class="visit-state"
+         data-visit-state
+         data-count="<%= loyalty.count %>"
+         data-required="<%= loyalty.required %>">
+      <% if (loyalty.eligible) { %>
+        <p class="badge badge-free badge-big" data-visit-badge>NASLEDNJE STRIŽENJE BREZPLAČNO</p>
+      <% } else { %>
+        <p class="visit-count" data-visit-badge><%= loyalty.progress %></p>
+      <% } %>
+
+      <div class="progress" role="img"
+           aria-label="<%= loyalty.count %> od <%= loyalty.required %> plačanih striženj">
+        <div class="progress-bar" data-visit-bar style="width: <%= loyalty.percent %>%"></div>
+      </div>
+
+      <p class="visit-hint" data-visit-hint><%= loyalty.hint %></p>
+    </div>
+
+    <div class="counter">
+      <button type="button" class="btn btn-round" data-visit-delta="-1"
+              aria-label="Zmanjšaj število obiskov">−</button>
+      <output class="counter-value" data-visit-value><%= loyalty.count %></output>
+      <button type="button" class="btn btn-round btn-primary" data-visit-delta="1"
+              aria-label="Povečaj število obiskov">+</button>
+    </div>
+
+    <form method="post" action="/app/customers/<%= customer.id %>/visits" class="inline-form"
+          data-visit-set>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="action" value="set">
+      <label for="set-count">Nastavi število</label>
+      <input id="set-count" name="count" type="number" min="0" max="9999"
+             value="<%= loyalty.count %>" inputmode="numeric">
+      <button type="submit" class="btn">Shrani število</button>
+    </form>
+
+    <% if (loyalty.eligible) { %>
+      <form method="post" action="/app/customers/<%= customer.id %>/visits" class="redeem-form"
+            data-confirm="Unovčim brezplačno striženje za <%= util.fullName(customer) %>?&#10;&#10;Trenutno število obiskov: <%= loyalty.count %>&#10;Števec se bo ponastavil na 0.">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="action" value="redeem">
+        <button type="submit" class="btn btn-primary btn-block">Unovči brezplačno striženje</button>
+      </form>
+    <% } %>
+
+    <p class="fineprint">
+      Števec obiskov se vodi ročno. Zaključen termin ga nikoli ne spremeni.
+    </p>
+  </section>
+</div>
+
+<%- include('partials/appointment-data') %>
+<%- include('partials/foot') %>

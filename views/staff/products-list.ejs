@@ -1,0 +1,59 @@
+<%- include('partials/head') %>
+
+<div class="page-head">
+  <h1>Izdelki</h1>
+  <div class="page-actions">
+    <form class="searchbar" method="get" action="/app/products" role="search">
+      <input type="search" name="q" value="<%= query %>" placeholder="Iskanje izdelkov…"
+             aria-label="Iskanje izdelkov">
+      <button type="submit" class="btn btn-quiet">Išči</button>
+      <% if (query) { %><a class="btn btn-quiet" href="/app/products">Počisti</a><% } %>
+    </form>
+    <a class="btn btn-primary" href="/app/products/new">+ Dodaj izdelek</a>
+  </div>
+</div>
+
+<% if (!products.length) { %>
+  <p class="empty">
+    <% if (query) { %>Noben izdelek ne ustreza iskanju „<%= query %>“.<% } else { %>Izdelkov še ni.<% } %>
+  </p>
+<% } else { %>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>Ime</th><th>Količina</th><th>Cena</th><th>Stanje</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% products.forEach(function (p) { %>
+          <tr class="<%= p.active ? '' : 'is-inactive' %>" data-product="<%= p.id %>">
+            <td><a class="strong-link" href="/app/products/<%= p.id %>"><%= p.name %></a></td>
+            <td>
+              <div class="counter counter-inline">
+                <button type="button" class="btn btn-round btn-sm" data-stock-delta="-1"
+                        data-id="<%= p.id %>" aria-label="Zmanjšaj zalogo za <%= p.name %>">−</button>
+                <output class="counter-value" data-stock-value="<%= p.id %>"><%= p.quantity %></output>
+                <button type="button" class="btn btn-round btn-sm" data-stock-delta="1"
+                        data-id="<%= p.id %>" aria-label="Povečaj zalogo za <%= p.name %>">+</button>
+              </div>
+            </td>
+            <td><%= util.formatMoney(p.price_cents) %></td>
+            <td>
+              <% if (p.active) { %>
+                <span class="tag tag-ok">AKTIVEN</span>
+              <% } else { %>
+                <span class="tag tag-muted">IZKLOPLJEN</span>
+              <% } %>
+            </td>
+            <td class="row-actions">
+              <a class="btn btn-quiet btn-sm" href="/app/products/<%= p.id %>">Odpri</a>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<p class="fineprint">Samo vodenje zaloge — ni blagajne, računov ali zgodovine prodaje.</p>
+
+<%- include('partials/foot') %>

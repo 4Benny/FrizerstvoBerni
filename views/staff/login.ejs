@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="sl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Prijava za zaposlene · <%= settings.salon_name %></title>
+<link rel="stylesheet" href="/css/staff.css?v=<%= assetVersion %>">
+</head>
+<body class="staff login-page">
+<main class="login-card">
+  <% if (settings.logo_url) { %>
+    <img class="login-logo" src="<%= settings.logo_url %>" alt="<%= settings.salon_name %>">
+  <% } else { %>
+    <h1><%= settings.salon_name %></h1>
+  <% } %>
+  <p class="login-sub">Prijava za zaposlene</p>
+
+  <% if (error) { %>
+    <div class="flash flash-error" role="alert"><%= error %></div>
+  <% } %>
+
+  <form method="post" action="/login" autocomplete="on">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="next" value="<%= next %>">
+
+    <label for="login">Uporabniško ime ali e-pošta</label>
+    <input id="login" name="login" type="text" value="<%= login %>" required autofocus
+           autocapitalize="none" autocomplete="username">
+
+    <label for="password">Geslo</label>
+    <input id="password" name="password" type="password" required autocomplete="current-password">
+
+    <button type="submit" class="btn btn-primary btn-block">Prijava</button>
+  </form>
+
+  <p class="login-back"><a href="/">← Nazaj na spletno stran</a></p>
+</main>
+</body>
+</html>

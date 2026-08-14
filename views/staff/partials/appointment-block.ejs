@@ -1,0 +1,39 @@
+<%
+  const slots = (appt.start_min - window.startMin) / window.slotMin;
+  const spans = appt.duration_min / window.slotMin;
+  const lanes = appt.lanes || 1;
+  const lane  = appt.lane || 0;
+  // Anything up to half an hour is too short for the four-line layout, so it
+  // falls back to a single line that still names the employee.
+  const compact = appt.duration_min <= 30;
+%>
+<button type="button"
+        class="appt status-<%= appt.status %> <%= compact ? 'appt-compact' : '' %>"
+        data-appointment="<%= appt.id %>"
+        draggable="true"
+        data-appt-date="<%= appt.date %>"
+        data-appt-start="<%= appt.start_min %>"
+        data-appt-employee="<%= appt.employee_id %>"
+        data-appt-customer="<%= appt.customer_name %>"
+        style="top: calc(<%= slots %> * var(--slot-h));
+               height: calc(<%= spans %> * var(--slot-h) - 3px);
+               left: calc(<%= (lane / lanes) * 100 %>% + 2px);
+               width: calc(<%= 100 / lanes %>% - 4px);
+               --appt-color: <%= appt.employee_color %>;"
+        title="<%= appt.start_time %>–<%= appt.end_time %> · <%= appt.customer_name %> · <%= appt.service_name %> · <%= appt.employee_name %>">
+  <% if (compact) { %>
+    <%# A short booking has no room for four lines, but the employee name still
+        has to be visible so "All employees" stays readable. %>
+    <span class="appt-time"><%= appt.start_time %></span>
+    <span class="appt-customer"><%= appt.customer_name %></span>
+    <span class="appt-employee"><%= appt.employee_name %></span>
+  <% } else { %>
+    <span class="appt-time"><%= appt.start_time %>–<%= appt.end_time %></span>
+    <span class="appt-customer"><%= appt.customer_name %></span>
+    <span class="appt-service"><%= appt.service_name %></span>
+    <span class="appt-employee"><%= appt.employee_name %></span>
+  <% } %>
+  <% if (appt.status !== 'scheduled') { %>
+    <span class="appt-status"><%= appt.status_label %></span>
+  <% } %>
+</button>

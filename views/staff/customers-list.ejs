@@ -1,0 +1,65 @@
+<%- include('partials/head') %>
+
+<div class="page-head">
+  <h1>Stranke</h1>
+  <div class="page-actions">
+    <form class="searchbar" method="get" action="/app/customers" role="search">
+      <input type="search" name="q" value="<%= query %>" placeholder="Iskanje po imenu ali telefonu…"
+             aria-label="Iskanje strank" autofocus>
+      <% if (showInactive) { %><input type="hidden" name="inactive" value="1"><% } %>
+      <button type="submit" class="btn btn-quiet">Išči</button>
+      <% if (query) { %><a class="btn btn-quiet" href="/app/customers">Počisti</a><% } %>
+    </form>
+    <a class="btn btn-primary" href="/app/customers/new">+ Nova stranka</a>
+  </div>
+</div>
+
+<p class="page-sub">
+  <% if (showInactive) { %>
+    Prikazane so tudi neaktivne stranke ·
+    <a href="/app/customers<%= query ? '?q=' + encodeURIComponent(query) : '' %>">Prikaži samo aktivne</a>
+  <% } else { %>
+    <a href="/app/customers?inactive=1<%= query ? '&q=' + encodeURIComponent(query) : '' %>">Vključi neaktivne stranke</a>
+  <% } %>
+</p>
+
+<% if (!customers.length) { %>
+  <p class="empty">
+    <% if (query) { %>Nobena stranka ne ustreza iskanju „<%= query %>“.<% } else { %>Strank še ni.<% } %>
+  </p>
+<% } else { %>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>Ime</th><th>Telefon</th><th>Obiski</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% customers.forEach(function (c) { %>
+          <tr class="<%= c.active ? '' : 'is-inactive' %>">
+            <td>
+              <a class="strong-link" href="/app/customers/<%= c.id %>"><%= util.fullName(c) %></a>
+              <% if (!c.active) { %><span class="tag tag-muted">NEAKTIVNA</span><% } %>
+            </td>
+            <td>
+              <% if (c.phone) { %>
+                <a href="tel:<%= c.phone.replace(/\s/g, '') %>"><%= c.phone %></a>
+              <% } else { %><span class="muted">—</span><% } %>
+            </td>
+            <td>
+              <% if (c.loyalty.eligible) { %>
+                <span class="badge badge-free">BREZPLAČNO</span>
+              <% } else { %>
+                <%= c.loyalty.progress %>
+              <% } %>
+            </td>
+            <td class="row-actions">
+              <a class="btn btn-quiet btn-sm" href="/app/customers/<%= c.id %>">Odpri</a>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<%- include('partials/foot') %>

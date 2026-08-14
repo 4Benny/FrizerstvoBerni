@@ -1,0 +1,56 @@
+<%- include('partials/head') %>
+
+<div class="page-head">
+  <h1>Zaposleni</h1>
+  <div class="page-actions">
+    <a class="btn btn-primary" href="/app/employees/new">+ Dodaj zaposlenega</a>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr><th>Ime</th><th>Uporabniško ime</th><th>Vloga</th><th>Stanje</th><th></th></tr>
+    </thead>
+    <tbody>
+      <% employees.forEach(function (e) { %>
+        <tr class="<%= e.active ? '' : 'is-inactive' %>">
+          <td>
+            <span class="dot" style="background: <%= e.color %>"></span>
+            <span class="strong-link"><%= util.fullName(e) %></span>
+            <% if (e.id === user.id) { %><span class="tag tag-muted">VI</span><% } %>
+          </td>
+          <td><%= e.username %></td>
+          <td>
+            <span class="tag <%= e.role === 'admin' ? 'tag-admin' : '' %>">
+              <%= e.role === 'admin' ? 'SKRBNIK' : 'ZAPOSLENI' %>
+            </span>
+          </td>
+          <td>
+            <% if (e.active) { %>
+              <span class="tag tag-ok">AKTIVEN</span>
+            <% } else { %>
+              <span class="tag tag-muted">NEAKTIVEN</span>
+            <% } %>
+          </td>
+          <td class="row-actions">
+            <a class="btn btn-quiet btn-sm" href="/app/employees/<%= e.id %>/edit">Uredi</a>
+            <form method="post" action="/app/employees/<%= e.id %>/active" class="inline"
+                  <% if (e.active) { %>data-confirm="Deaktiviram <%= util.fullName(e) %>? Prijava ne bo več mogoča. Obstoječi termini se ohranijo."<% } %>>
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="btn btn-quiet btn-sm">
+                <%= e.active ? 'Deaktiviraj' : 'Aktiviraj' %>
+              </button>
+            </form>
+          </td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+
+<p class="fineprint">
+  Deaktiviran zaposleni se ne more prijaviti, vsi njegovi obstoječi termini pa ostanejo.
+</p>
+
+<%- include('partials/foot') %>

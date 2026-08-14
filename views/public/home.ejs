@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="sl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= settings.salon_name %><%= settings.city ? ' · ' + settings.city : '' %></title>
+<meta name="description" content="<%= settings.slogan || settings.salon_name %>">
+<% if (settings.emblem_url) { %><link rel="icon" href="<%= settings.emblem_url %>"><% } %>
+<link rel="stylesheet" href="/css/public.css?v=<%= assetVersion %>">
+</head>
+<body>
+<a class="skip" href="#main">Preskoči na vsebino</a>
+
+<header class="site-head">
+  <a class="logo" href="#home">
+    <% if (settings.logo_url) { %>
+      <img class="logo-img" src="<%= settings.logo_url %>" alt="<%= settings.salon_name %>">
+    <% } else { %>
+      <%= settings.salon_name %>
+    <% } %>
+  </a>
+  <nav aria-label="Razdelki">
+    <a href="#home">Domov</a>
+    <a href="#about">O nas</a>
+    <a href="#services">Storitve</a>
+    <a href="#hours">Delovni čas</a>
+    <a href="#contact">Kontakt</a>
+  </nav>
+  <% if (settings.phone) { %>
+    <a class="head-call" href="tel:<%= settings.phone.replace(/\s/g, '') %>">
+      <%= settings.phone %>
+    </a>
+  <% } %>
+</header>
+
+<main id="main">
+
+  <section class="hero" id="home">
+    <% if (settings.emblem_url) { %>
+      <img class="hero-emblem" src="<%= settings.emblem_url %>" alt="">
+    <% } %>
+    <h1><%= settings.salon_name %></h1>
+    <% if (settings.slogan) { %>
+      <p class="hero-sub"><%= settings.slogan %><%= settings.city ? ', ' + settings.city : '' %></p>
+    <% } %>
+
+    <% if (settings.phone) { %>
+      <p class="hero-call">
+        Za termin nas pokličite:<br>
+        <a class="hero-phone" href="tel:<%= settings.phone.replace(/\s/g, '') %>"><%= settings.phone %></a>
+      </p>
+      <a class="cta" href="tel:<%= settings.phone.replace(/\s/g, '') %>">POKLIČITE ZA TERMIN</a>
+      <p class="hero-note">Termine dogovorimo po telefonu, po sporočilu ali osebno v salonu.</p>
+    <% } else { %>
+      <p class="hero-note">Za termin se oglasite v salonu.</p>
+    <% } %>
+  </section>
+
+  <% if (settings.about) { %>
+    <section class="section" id="about">
+      <h2>O nas</h2>
+      <div class="prose">
+        <% settings.about.split(/\n\s*\n/).forEach(function (para) {
+             const text = para.trim();
+             if (!text) return;
+             // The salon writes short standalone lines as sub-headings.
+             const isHeading = text.length < 60 && !text.includes('\n');
+        %>
+          <% if (isHeading) { %>
+            <h3><%= text %></h3>
+          <% } else { %>
+            <p><%= text %></p>
+          <% } %>
+        <% }); %>
+      </div>
+    </section>
+  <% } %>
+
+  <section class="section" id="services">
+    <h2>Storitve</h2>
+    <% if (!services.length) { %>
+      <p class="muted">Za trenutni cenik nas pokličite.</p>
+    <% } else { %>
+      <%
+        // Services carry their category in the description; group by it so the
+        // price list reads the way the salon writes it.
+        const groups = [];
+        services.forEach(function (s) {
+          const name = (s.description || '').trim();
+          let group = groups.find((g) => g.name === name);
+          if (!group) { group = { name: name, items: [] }; groups.push(group); }
+          group.items.push(s);
+        });
+      %>
+      <% groups.forEach(function (group) { %>
+        <% if (group.name) { %><h3 class="service-group"><%= group.name %></h3><% } %>
+        <ul class="service-list">
+          <% group.items.forEach(function (s) { %>
+            <li class="service">
+              <div class="service-main">
+                <span class="service-name"><%= s.name %></span>
+              </div>
+              <span class="service-duration"><%= s.duration_min %> min</span>
+              <span class="service-price">
+                <% if (s.price_cents > 0) { %>
+                  <%= util.formatMoney(s.price_cents) %>
+                <% } else { %>
+                  <span class="muted">po dogovoru</span>
+                <% } %>
+              </span>
+            </li>
+          <% }); %>
+        </ul>
+      <% }); %>
+    <% } %>
+  </section>
+
+  <section class="section" id="hours">
+    <h2>Delovni čas</h2>
+    <table class="hours">
+      <tbody>
+        <% hours.forEach(function (day) { %>
+          <tr class="<%= day.isToday ? 'is-today' : '' %>">
+            <th scope="row"><%= day.name %></th>
+            <td>
+              <% if (day.mode === 'closed') { %>
+                <span class="closed">Zaprto</span>
+              <% } else { %>
+                <%= day.label %>
+              <% } %>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section" id="contact">
+    <h2>Kontakt</h2>
+    <div class="contact-grid">
+      <% if (settings.address || settings.city) { %>
+        <div class="contact-item">
+          <h3>Naslov</h3>
+          <p>
+            <%= settings.address %><% if (settings.address && settings.city) { %><br><% } %><%= settings.city %>
+          </p>
+          <% if (settings.map_url) { %>
+            <p><a href="<%= settings.map_url %>" target="_blank" rel="noopener">Odpri zemljevid</a></p>
+          <% } %>
+        </div>
+      <% } %>
+
+      <% if (settings.phone) { %>
+        <div class="contact-item">
+          <h3>Telefon</h3>
+          <p><a href="tel:<%= settings.phone.replace(/\s/g, '') %>"><%= settings.phone %></a></p>
+        </div>
+      <% } %>
+
+      <% if (settings.email) { %>
+        <div class="contact-item">
+          <h3>E-pošta</h3>
+          <p><a href="mailto:<%= settings.email %>"><%= settings.email %></a></p>
+        </div>
+      <% } %>
+
+      <% if (settings.instagram || settings.facebook || settings.other_link) { %>
+        <div class="contact-item">
+          <h3>Sledite nam</h3>
+          <p class="links">
+            <% if (settings.instagram) { %>
+              <a href="<%= settings.instagram %>" target="_blank" rel="noopener">Instagram</a>
+            <% } %>
+            <% if (settings.facebook) { %>
+              <a href="<%= settings.facebook %>" target="_blank" rel="noopener">Facebook</a>
+            <% } %>
+            <% if (settings.other_link) { %>
+              <a href="<%= settings.other_link %>" target="_blank" rel="noopener">
+                <%= settings.other_link_label || 'Več' %>
+              </a>
+            <% } %>
+          </p>
+        </div>
+      <% } %>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-foot">
+  <p>© <%= new Date().getFullYear() %> <%= settings.salon_name %></p>
+  <p class="staff-link"><a href="/login">Prijava za zaposlene</a></p>
+</footer>
+
+</body>
+</html>

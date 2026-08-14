@@ -1,0 +1,55 @@
+<%- include('partials/head') %>
+<%- include('partials/calendar-toolbar') %>
+
+<section class="cal-wrap">
+  <div class="month-grid">
+    <div class="month-head">
+      <% ['PON','TOR','SRE','ČET','PET','SOB','NED'].forEach(function (name) { %>
+        <div class="month-dayname"><%= name %></div>
+      <% }); %>
+    </div>
+
+    <% weeks.forEach(function (week) { %>
+      <div class="month-week">
+        <% week.forEach(function (day) { %>
+          <div class="month-cell <%= day.inMonth ? '' : 'is-outside' %> <%= day.isToday ? 'is-today' : '' %> <%= day.closed ? 'is-closed' : '' %>"
+               data-open-day="/app/calendar?view=day&amp;date=<%= day.iso %><%= employeeId ? '&employee=' + employeeId : '' %>"
+               title="Odpri <%= day.display %> v dnevnem pogledu">
+            <div class="month-cell-head">
+              <a class="month-daynum"
+                 href="/app/calendar?view=day&amp;date=<%= day.iso %><%= employeeId ? '&employee=' + employeeId : '' %>"
+                 title="Odpri <%= day.display %> v dnevnem pogledu"><%= day.dayNumber %></a>
+              <% if (day.appointments.length) { %>
+                <span class="month-count"><%= day.appointments.length %></span>
+              <% } %>
+            </div>
+
+            <ul class="month-appts">
+              <% day.preview.forEach(function (appt) { %>
+                <li>
+                  <button type="button"
+                          class="month-appt status-<%= appt.status %>"
+                          data-appointment="<%= appt.id %>"
+                          style="--appt-color: <%= appt.employee_color %>;"
+                          title="<%= appt.start_time %> <%= appt.customer_name %> · <%= appt.service_name %> · <%= appt.employee_name %>">
+                    <span class="month-appt-time"><%= appt.start_time %></span>
+                    <span class="month-appt-name"><%= appt.customer_name %></span>
+                  </button>
+                </li>
+              <% }); %>
+              <% if (day.overflow > 0) { %>
+                <li>
+                  <a class="month-more"
+                     href="/app/calendar?view=day&amp;date=<%= day.iso %><%= employeeId ? '&employee=' + employeeId : '' %>">+<%= day.overflow %> več</a>
+                </li>
+              <% } %>
+            </ul>
+          </div>
+        <% }); %>
+      </div>
+    <% }); %>
+  </div>
+</section>
+
+<%- include('partials/appointment-data') %>
+<%- include('partials/foot') %>

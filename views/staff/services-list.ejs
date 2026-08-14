@@ -1,0 +1,70 @@
+<%- include('partials/head') %>
+
+<div class="page-head">
+  <h1>Storitve</h1>
+  <% if (user.isAdmin) { %>
+    <div class="page-actions">
+      <a class="btn btn-primary" href="/app/services/new">+ Dodaj storitev</a>
+    </div>
+  <% } %>
+</div>
+
+<% if (!user.isAdmin) { %>
+  <p class="page-sub">Storitve lahko spreminja samo skrbnik.</p>
+<% } %>
+
+<% if (!services.length) { %>
+  <p class="empty">Storitev še ni.</p>
+<% } else { %>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>Storitev</th><th>Trajanje</th><th>Cena</th><th>Stanje</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% services.forEach(function (s) { %>
+          <tr class="<%= s.active ? '' : 'is-inactive' %>">
+            <td>
+              <span class="strong-link"><%= s.name %></span>
+              <% if (s.description) { %><br><span class="muted small"><%= s.description %></span><% } %>
+            </td>
+            <td><%= s.duration_min %> min</td>
+            <td>
+              <% if (s.price_cents > 0) { %>
+                <%= util.formatMoney(s.price_cents) %>
+              <% } else { %>
+                <span class="muted">po dogovoru</span>
+              <% } %>
+            </td>
+            <td>
+              <% if (s.active) { %>
+                <span class="tag tag-ok">AKTIVNA</span>
+              <% } else { %>
+                <span class="tag tag-muted">IZKLOPLJENA</span>
+              <% } %>
+            </td>
+            <td class="row-actions">
+              <% if (user.isAdmin) { %>
+                <a class="btn btn-quiet btn-sm" href="/app/services/<%= s.id %>/edit">Uredi</a>
+                <form method="post" action="/app/services/<%= s.id %>/active" class="inline"
+                      <% if (s.active) { %>data-confirm="Izklopim storitev <%= s.name %>? Ne bo se več prikazovala na spletni strani niti pri novih terminih."<% } %>>
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="btn btn-quiet btn-sm">
+                    <%= s.active ? 'Izklopi' : 'Vklopi' %>
+                  </button>
+                </form>
+              <% } %>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<p class="fineprint">
+  Izklopljena storitev izgine s spletne strani in iz novih terminov.
+  Že ustvarjeni termini ohranijo ime, trajanje in ceno, s katerimi so bili narejeni.
+</p>
+
+<%- include('partials/foot') %>

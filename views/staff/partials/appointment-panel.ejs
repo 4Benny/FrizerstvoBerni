@@ -1,0 +1,89 @@
+<div class="panel" data-panel-appointment="<%= appt.id %>">
+  <div class="panel-head">
+    <h2 id="modal-title" class="panel-title">
+      <a href="/app/customers/<%= appt.customer_id %>"><%= appt.customer_name %></a>
+    </h2>
+    <button type="button" class="modal-x" data-modal-close aria-label="Zapri">×</button>
+  </div>
+
+  <p class="panel-lead">
+    <strong><%= appt.service_name %></strong><br>
+    <%= appt.date_display %> · <%= appt.start_time %> – <%= appt.end_time %>
+  </p>
+
+  <% if (appt.status !== 'scheduled') { %>
+    <p class="status-banner status-<%= appt.status %>">
+      Stanje: <strong><%= appt.status_label %></strong>
+      <% if (appt.status === 'cancelled' && appt.cancel_reason) { %>
+        <br><span class="muted">Razlog: <%= appt.cancel_reason %></span>
+      <% } %>
+    </p>
+  <% } %>
+
+  <dl class="detail-list">
+    <div><dt>Zaposleni</dt><dd><%= appt.employee_name %></dd></div>
+    <div>
+      <dt>Telefon</dt>
+      <dd>
+        <% if (appt.customer_phone) { %>
+          <a href="tel:<%= appt.customer_phone.replace(/\s/g, '') %>"><%= appt.customer_phone %></a>
+        <% } else { %>
+          <span class="muted">Ni zapisan</span>
+        <% } %>
+      </dd>
+    </div>
+    <div><dt>Cena</dt><dd><%= appt.price_display %></dd></div>
+    <div><dt>Trajanje</dt><dd><%= appt.duration_min %> min</dd></div>
+    <div>
+      <dt>Obiski</dt>
+      <dd>
+        <% if (loyalty.eligible) { %>
+          <span class="badge badge-free">NASLEDNJE STRIŽENJE BREZPLAČNO</span>
+        <% } else { %>
+          <%= loyalty.progress %>
+        <% } %>
+      </dd>
+    </div>
+  </dl>
+
+  <% if (appt.notes) { %>
+    <div class="panel-notes">
+      <h3>Opombe</h3>
+      <p><%= appt.notes %></p>
+    </div>
+  <% } %>
+
+  <% if (appt.customer_notes) { %>
+    <div class="panel-notes">
+      <h3>Opombe o stranki</h3>
+      <p><%= appt.customer_notes %></p>
+    </div>
+  <% } %>
+
+  <% if (lastSms && lastSms.status === 'failed') { %>
+    <div class="panel-notes warn">
+      <p>Zadnjega SMS sporočila ni bilo mogoče poslati.</p>
+      <button type="button" class="btn btn-quiet btn-sm"
+              data-retry-sms="<%= appt.id %>" data-kind="<%= lastSms.kind %>">Poskusi znova</button>
+    </div>
+  <% } %>
+
+  <div class="panel-actions">
+    <% if (appt.status !== 'completed' && appt.status !== 'cancelled') { %>
+      <button type="button" class="btn btn-primary" data-appt-status="completed" data-id="<%= appt.id %>">Zaključi</button>
+    <% } %>
+    <% if (appt.status !== 'cancelled') { %>
+      <button type="button" class="btn" data-appt-reschedule="<%= appt.id %>">Prestavi</button>
+      <button type="button" class="btn" data-appt-edit="<%= appt.id %>">Uredi</button>
+    <% } %>
+    <% if (appt.status !== 'no_show' && appt.status !== 'cancelled') { %>
+      <button type="button" class="btn" data-appt-status="no_show" data-id="<%= appt.id %>">Ni prišla</button>
+    <% } %>
+    <% if (appt.status === 'cancelled' || appt.status === 'no_show') { %>
+      <button type="button" class="btn" data-appt-status="scheduled" data-id="<%= appt.id %>">Ponovno odpri</button>
+    <% } %>
+    <% if (appt.status !== 'cancelled') { %>
+      <button type="button" class="btn btn-danger" data-appt-cancel="<%= appt.id %>">Odpovej termin</button>
+    <% } %>
+  </div>
+</div>

@@ -1,0 +1,58 @@
+<%
+  // Build a calendar URL keeping the parts that are not being changed.
+  function calUrl(over) {
+    const p = new URLSearchParams();
+    p.set('view', over.view !== undefined ? over.view : mode);
+    p.set('date', over.date !== undefined ? over.date : date);
+    const emp = over.employee !== undefined ? over.employee : employeeId;
+    if (emp) p.set('employee', emp);
+    return '/app/calendar?' + p.toString();
+  }
+%>
+<div class="cal-toolbar">
+  <div class="cal-toolbar-row">
+    <div class="cal-nav">
+      <a class="btn btn-quiet" href="<%= calUrl({ date: range.prev }) %>" aria-label="Prejšnji">‹ Prejšnji</a>
+      <a class="btn btn-quiet" href="<%= calUrl({ date: today }) %>">Danes</a>
+      <a class="btn btn-quiet" href="<%= calUrl({ date: range.next }) %>" aria-label="Naslednji">Naslednji ›</a>
+    </div>
+
+    <h1 class="cal-heading"><%= heading %></h1>
+
+    <div class="cal-actions">
+      <button type="button" class="btn btn-primary" data-new-appointment
+              data-date="<%= mode === 'day' ? date : today %>">+ Nov termin</button>
+    </div>
+  </div>
+
+  <div class="cal-toolbar-row cal-toolbar-controls">
+    <div class="segmented" role="group" aria-label="Pogled koledarja">
+      <a href="<%= calUrl({ view: 'day' }) %>"   class="<%= mode === 'day' ? 'on' : '' %>">Dan</a>
+      <a href="<%= calUrl({ view: 'week' }) %>"  class="<%= mode === 'week' ? 'on' : '' %>">Teden</a>
+      <a href="<%= calUrl({ view: 'month' }) %>" class="<%= mode === 'month' ? 'on' : '' %>">Mesec</a>
+    </div>
+
+    <form class="cal-filter" method="get" action="/app/calendar">
+      <input type="hidden" name="view" value="<%= mode %>">
+      <input type="hidden" name="date" value="<%= date %>">
+      <label for="employee-filter">Zaposleni</label>
+      <select id="employee-filter" name="employee" onchange="this.form.submit()">
+        <option value="">Vsi zaposleni</option>
+        <% employees.forEach(function (e) { %>
+          <option value="<%= e.id %>" <%= employeeId === e.id ? 'selected' : '' %>>
+            <%= util.fullName(e) %>
+          </option>
+        <% }); %>
+      </select>
+      <noscript><button type="submit" class="btn btn-quiet btn-sm">Uporabi</button></noscript>
+    </form>
+
+    <form class="cal-jump" method="get" action="/app/calendar">
+      <input type="hidden" name="view" value="<%= mode %>">
+      <% if (employeeId) { %><input type="hidden" name="employee" value="<%= employeeId %>"><% } %>
+      <label for="date-jump">Pojdi na</label>
+      <input id="date-jump" type="date" name="date" value="<%= date %>" onchange="this.form.submit()">
+      <noscript><button type="submit" class="btn btn-quiet btn-sm">Pojdi</button></noscript>
+    </form>
+  </div>
+</div>

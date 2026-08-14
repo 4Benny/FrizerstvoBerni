@@ -1,0 +1,88 @@
+<%- include('partials/head') %>
+
+<p class="crumb"><a href="/app/employees">← Zaposleni</a></p>
+<div class="page-head"><h1><%= title %></h1></div>
+
+<% if (error) { %><div class="flash flash-error" role="alert"><%= error %></div><% } %>
+
+<form class="card form" method="post"
+      action="<%= employee ? '/app/employees/' + employee.id + '/edit' : '/app/employees/new' %>">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <div class="form-row">
+    <div class="field">
+      <label for="first_name">Ime *</label>
+      <input id="first_name" name="first_name" type="text" required autofocus
+             value="<%= values.first_name || '' %>">
+    </div>
+    <div class="field">
+      <label for="last_name">Priimek</label>
+      <input id="last_name" name="last_name" type="text" value="<%= values.last_name || '' %>">
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="field">
+      <label for="username">Uporabniško ime *</label>
+      <input id="username" name="username" type="text" required autocapitalize="none"
+             autocomplete="off" value="<%= values.username || '' %>">
+      <p class="hint">Vsaj 3 znaki: črke, številke, . _ -</p>
+    </div>
+    <div class="field">
+      <label for="email">E-pošta</label>
+      <input id="email" name="email" type="email" value="<%= values.email || '' %>">
+    </div>
+  </div>
+
+  <% if (!employee) { %>
+    <div class="field">
+      <label for="password">Geslo *</label>
+      <input id="password" name="password" type="password" required minlength="6"
+             autocomplete="new-password">
+      <p class="hint">Vsaj 6 znakov. Zaposleni se z njim prijavi sam.</p>
+    </div>
+  <% } %>
+
+  <div class="form-row">
+    <div class="field">
+      <label for="role">Vloga *</label>
+      <select id="role" name="role">
+        <option value="employee" <%= values.role !== 'admin' ? 'selected' : '' %>>Zaposleni</option>
+        <option value="admin" <%= values.role === 'admin' ? 'selected' : '' %>>Skrbnik</option>
+      </select>
+      <p class="hint">Skrbnik lahko upravlja tudi zaposlene in nastavitve salona.</p>
+    </div>
+    <div class="field">
+      <label for="color">Barva v koledarju</label>
+      <input id="color" name="color" type="color" value="<%= values.color || '#eb008b' %>">
+    </div>
+  </div>
+
+  <label class="check">
+    <input type="checkbox" name="active" value="1" <%= values.active ? 'checked' : '' %>>
+    Aktiven — prijava je mogoča
+  </label>
+
+  <div class="form-actions">
+    <a class="btn btn-quiet" href="/app/employees">Prekliči</a>
+    <button type="submit" class="btn btn-primary" data-busy-text="Shranjujem…">Shrani zaposlenega</button>
+  </div>
+</form>
+
+<% if (employee) { %>
+  <form class="card form" method="post" action="/app/employees/<%= employee.id %>/password"
+        data-confirm="Ponastavim geslo za <%= util.fullName(employee) %>?">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h2>Ponastavi geslo</h2>
+    <div class="field">
+      <label for="new-password">Novo geslo</label>
+      <input id="new-password" name="password" type="password" minlength="6" required
+             autocomplete="new-password">
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn" data-busy-text="Shranjujem…">Ponastavi geslo</button>
+    </div>
+  </form>
+<% } %>
+
+<%- include('partials/foot') %>

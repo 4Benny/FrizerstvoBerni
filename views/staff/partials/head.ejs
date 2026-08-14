@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="sl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title><%= title %> · <%= settings.salon_name %></title>
+<link rel="stylesheet" href="/css/staff.css?v=<%= assetVersion %>">
+</head>
+<body class="staff">
+<a class="skip" href="#main">Preskoči na vsebino</a>
+
+<header class="topbar">
+  <a class="brand" href="/app/calendar">
+    <% if (settings.logo_url) { %>
+      <img class="brand-logo" src="<%= settings.logo_url %>" alt="<%= settings.salon_name %>">
+    <% } else { %>
+      <span class="brand-mark"><%= (settings.salon_name || 'S').trim().charAt(0).toUpperCase() %></span>
+      <span class="brand-name"><%= settings.salon_name %></span>
+    <% } %>
+  </a>
+
+  <nav class="mainnav" aria-label="Glavna navigacija">
+    <a href="/app/calendar" class="<%= path.startsWith('/app/calendar') ? 'active' : '' %>">Koledar</a>
+    <a href="/app/customers" class="<%= path.startsWith('/app/customers') ? 'active' : '' %>">Stranke</a>
+    <a href="/app/services" class="<%= path.startsWith('/app/services') ? 'active' : '' %>">Storitve</a>
+    <a href="/app/products" class="<%= path.startsWith('/app/products') ? 'active' : '' %>">Izdelki</a>
+    <% if (user && user.isAdmin) { %>
+      <a href="/app/employees" class="<%= path.startsWith('/app/employees') ? 'active' : '' %>">Zaposleni</a>
+      <a href="/app/settings" class="<%= path.startsWith('/app/settings') ? 'active' : '' %>">Nastavitve</a>
+    <% } %>
+  </nav>
+
+  <div class="topbar-user">
+    <span class="who">
+      <%= user.name %><% if (user.isAdmin) { %> <span class="tag">SKRBNIK</span><% } %>
+    </span>
+    <form method="post" action="/logout">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="btn btn-quiet btn-sm">Odjava</button>
+    </form>
+  </div>
+</header>
+
+<div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+
+<main id="main" class="main">
+<% if (flash) { %>
+  <div class="flash flash-<%= flash.type %>" role="status"><%= flash.message %></div>
+<% } %>

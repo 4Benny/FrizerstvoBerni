@@ -1,0 +1,9 @@
+<%- include('partials/head') %>
+<%- include('partials/calendar-toolbar') %>
+
+<section class="cal-wrap">
+  <%- include('partials/calendar-grid', { days: days, window: window }) %>
+</section>
+
+<%- include('partials/appointment-data') %>
+<%- include('partials/foot') %>

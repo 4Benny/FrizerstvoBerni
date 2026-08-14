@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# The salon's live database — data, not source. Never commit it.
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Logs and OS noise
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Editors and local tooling
+.vscode/
+.idea/
+.claude/settings.local.json
+
+# Local environment overrides (session secret, SMS credentials)
+.env
+.env.local

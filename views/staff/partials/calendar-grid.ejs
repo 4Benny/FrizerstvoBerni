@@ -1,0 +1,54 @@
+<%
+  // Shared by Day and Week views: a time gutter plus one column per day.
+  const multi = days.length > 1;
+%>
+<div class="cal-grid <%= multi ? 'cal-grid-week' : 'cal-grid-day' %>">
+  <div class="cal-gridhead">
+    <div class="cal-gutter-head"></div>
+    <% days.forEach(function (day) { %>
+      <div class="cal-dayhead <%= day.isToday ? 'is-today' : '' %> <%= day.closed ? 'is-closed' : '' %>">
+        <a href="/app/calendar?view=day&amp;date=<%= day.iso %><%= employeeId ? '&employee=' + employeeId : '' %>">
+          <span class="cal-dayname"><%= day.dayShort %></span>
+          <span class="cal-daynum"><%= day.dayNumber %></span>
+        </a>
+        <span class="cal-dayhours"><%= day.openLabel %></span>
+      </div>
+    <% }); %>
+  </div>
+
+  <%# 22px per 15 minutes in both views: enough height that a 45-minute
+      appointment shows all four lines, including the employee name. %>
+  <div class="cal-gridbody" style="--slot-h: 22px;">
+    <div class="cal-gutter">
+      <% window.slots.forEach(function (slot) { %>
+        <div class="cal-tick <%= slot.isHour ? 'is-hour' : '' %>">
+          <% if (slot.isHour) { %><span><%= slot.label %></span><% } %>
+        </div>
+      <% }); %>
+    </div>
+
+    <% days.forEach(function (day) { %>
+      <div class="cal-col <%= day.isToday ? 'is-today' : '' %>" data-date="<%= day.iso %>">
+        <% window.slots.forEach(function (slot) {
+             // Shade only what falls outside fixed opening hours. A closed day is
+             // shaded entirely; a "by arrangement" day is not shaded at all.
+             const outside = day.closed ||
+               (day.hasFixedHours && (slot.min < day.openMin || slot.min >= day.closeMin));
+        %>
+          <button type="button"
+                  class="cal-slot <%= slot.isHour ? 'is-hour' : '' %> <%= outside ? 'is-outside' : '' %>"
+                  data-new-appointment
+                  data-date="<%= day.iso %>"
+                  data-start="<%= slot.label %>"
+                  aria-label="Nov termin <%= day.display %> <%= slot.label %>"></button>
+        <% }); %>
+
+        <div class="cal-appts">
+          <% day.appointments.forEach(function (appt) { %>
+            <%- include('appointment-block', { appt: appt, window: window }) %>
+          <% }); %>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+</div>

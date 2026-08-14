@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="sl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title><%= title %> · <%= settings.salon_name %></title>
+<link rel="stylesheet" href="/css/staff.css?v=<%= assetVersion %>">
+</head>
+<body class="staff login-page">
+<main class="login-card">
+  <h1><%= title %></h1>
+  <p class="login-sub"><%= typeof message !== 'undefined' && message ? message : 'Te strani ne morete odpreti.' %></p>
+  <p class="login-back">
+    <% if (user) { %>
+      <a href="/app/calendar">← Nazaj na koledar</a>
+    <% } else { %>
+      <a href="/login">← Prijava za zaposlene</a>
+    <% } %>
+  </p>
+</main>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<%
+  // Everything the appointment form needs is embedded once so opening the modal
+  // never waits on a network request.
+  const payload = {
+    services: (typeof services !== 'undefined' ? services : []).map(function (s) {
+      return {
+        id: s.id,
+        name: s.name,
+        duration_min: s.duration_min,
+        price_cents: s.price_cents,
+        price: (s.price_cents / 100).toFixed(2),
+      };
+    }),
+    employees: (typeof employees !== 'undefined' ? employees : []).map(function (e) {
+      return { id: e.id, name: util.fullName(e), color: e.color };
+    }),
+    defaultEmployeeId: typeof defaultEmployeeId !== 'undefined' ? defaultEmployeeId : null,
+    paidBeforeFree: Number(settings.paid_before_free) || 9,
+    today: typeof today !== 'undefined' ? today : util.todayIso(),
+    smsEnabled: settings.sms_enabled === '1',
+  };
+%>
+<script id="salon-data" type="application/json"><%- JSON.stringify(payload).replace(/</g, '\\u003c') %></script>

@@ -1,0 +1,53 @@
+<%- include('partials/head') %>
+
+<p class="crumb">
+  <% if (product) { %>
+    <a href="/app/products/<%= product.id %>">← <%= product.name %></a>
+  <% } else { %>
+    <a href="/app/products">← Izdelki</a>
+  <% } %>
+</p>
+
+<div class="page-head"><h1><%= title %></h1></div>
+
+<% if (error) { %><div class="flash flash-error" role="alert"><%= error %></div><% } %>
+
+<form class="card form" method="post"
+      action="<%= product ? '/app/products/' + product.id + '/edit' : '/app/products/new' %>">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <div class="field">
+    <label for="name">Ime izdelka *</label>
+    <input id="name" name="name" type="text" required autofocus value="<%= values.name || '' %>">
+  </div>
+
+  <div class="field">
+    <label for="description">Opis</label>
+    <textarea id="description" name="description" rows="3"><%= values.description || '' %></textarea>
+  </div>
+
+  <div class="form-row">
+    <div class="field">
+      <label for="quantity">Količina *</label>
+      <input id="quantity" name="quantity" type="number" min="0" max="999999" required
+             inputmode="numeric" value="<%= values.quantity || 0 %>">
+    </div>
+    <div class="field">
+      <label for="price">Cena (€) *</label>
+      <input id="price" name="price" type="text" required inputmode="decimal"
+             placeholder="14,90" value="<%= values.price !== undefined ? values.price : '' %>">
+    </div>
+  </div>
+
+  <label class="check">
+    <input type="checkbox" name="active" value="1" <%= values.active ? 'checked' : '' %>>
+    Aktiven
+  </label>
+
+  <div class="form-actions">
+    <a class="btn btn-quiet" href="<%= product ? '/app/products/' + product.id : '/app/products' %>">Prekliči</a>
+    <button type="submit" class="btn btn-primary" data-busy-text="Shranjujem…">Shrani izdelek</button>
+  </div>
+</form>
+
+<%- include('partials/foot') %>

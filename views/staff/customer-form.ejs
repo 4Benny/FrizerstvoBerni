@@ -1,0 +1,63 @@
+<%- include('partials/head') %>
+
+<p class="crumb">
+  <% if (customer) { %>
+    <a href="/app/customers/<%= customer.id %>">← <%= util.fullName(customer) %></a>
+  <% } else { %>
+    <a href="/app/customers">← Stranke</a>
+  <% } %>
+</p>
+
+<div class="page-head"><h1><%= title %></h1></div>
+
+<% if (error) { %><div class="flash flash-error" role="alert"><%= error %></div><% } %>
+
+<form class="card form" method="post"
+      action="<%= customer ? '/app/customers/' + customer.id + '/edit' : '/app/customers/new' %>">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <div class="form-row">
+    <div class="field">
+      <label for="first_name">Ime *</label>
+      <input id="first_name" name="first_name" type="text" required autofocus
+             value="<%= values.first_name || '' %>">
+    </div>
+    <div class="field">
+      <label for="last_name">Priimek</label>
+      <input id="last_name" name="last_name" type="text" value="<%= values.last_name || '' %>">
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="field">
+      <label for="phone">Telefon</label>
+      <input id="phone" name="phone" type="tel" value="<%= values.phone || '' %>"
+             placeholder="031 123 456">
+    </div>
+    <div class="field">
+      <label for="email">E-pošta</label>
+      <input id="email" name="email" type="email" value="<%= values.email || '' %>">
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="notes">Opombe</label>
+    <textarea id="notes" name="notes" rows="4"><%= values.notes || '' %></textarea>
+  </div>
+
+  <% if (customer) { %>
+    <label class="check">
+      <input type="checkbox" name="active" value="1" <%= values.active ? 'checked' : '' %>>
+      Aktivna stranka
+    </label>
+  <% } %>
+
+  <div class="form-actions">
+    <a class="btn btn-quiet" href="<%= customer ? '/app/customers/' + customer.id : '/app/customers' %>">Prekliči</a>
+    <button type="submit" class="btn btn-primary" data-busy-text="Shranjujem…">
+      <%= customer ? 'Shrani stranko' : 'Ustvari stranko' %>
+    </button>
+  </div>
+</form>
+
+<%- include('partials/foot') %>
