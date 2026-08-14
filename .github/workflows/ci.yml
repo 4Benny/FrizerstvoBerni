@@ -1,0 +1,44 @@
+# GitHub Actions — GitHub's equivalent of Bitbucket Pipelines.
+# Runs the test suite on every push and pull request to main and
+# release/staging. The suite starts the app itself against a throwaway
+# database, so nothing else needs provisioning.
+name: CI
+
+on:
+  push:
+    branches: [main, 'release/**']
+  pull_request:
+    branches: [main, 'release/**']
+
+jobs:
+  test:
+    name: Tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # node:sqlite is built in from Node 22.5; 24 is what the app targets.
+        node: ['22', '24']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check every file parses
+        run: |
+          find server.js src public/js tests -name '*.js' -print0 \
+            | xargs -0 -n1 node --check
+
+      - name: Run test suite
+        run: npm test
+        env:
+          # A fixed port keeps the run predictable on the runner.
+          TEST_PORT: '3399'
