@@ -8,7 +8,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node tests/run.js"
+    "test": "node tests/sms.js && node tests/run.js",
+    "test:http": "node tests/run.js",
+    "test:sms": "node tests/sms.js"
   },
   "engines": {
     "node": ">=22.5.0"

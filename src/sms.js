@@ -5,14 +5,42 @@ const settings = require('./settings');
 const util = require('./util');
 
 /**
- * SMS is deliberately pluggable. The default "log" driver writes the message
- * to the server console and records it in sms_log, which keeps every piece of
- * the UI (sent / failed / retry) working without a paid provider account.
+ * SMS is deliberately pluggable. Choose a driver with SMS_DRIVER:
  *
- * To use a real gateway set SMS_DRIVER=twilio plus TWILIO_ACCOUNT_SID,
- * TWILIO_AUTH_TOKEN and TWILIO_FROM in the environment.
+ *   log     (default) writes the message to the server log and records it, so
+ *           the whole sent / failed / retry flow works without a provider
+ *   http    posts to any gateway that accepts an HTTP request — a Slovenian
+ *           A2P provider, or an Android phone running an SMS-gateway app so
+ *           messages come from the salon's own number
+ *   twilio  Twilio's REST API
+ *
+ * See DEPLOY.md for worked configurations.
  */
 const DRIVER = process.env.SMS_DRIVER || 'log';
+
+/** Default country for local numbers, without the plus. Slovenia is 386. */
+const COUNTRY_CODE = (process.env.SMS_COUNTRY_CODE || '386').replace(/\D/g, '');
+
+/**
+ * Gateways expect E.164 (+38631331636), while the salon types numbers the way
+ * they are written locally ("031 331 636", "+386 31 331 636", "00386 31…").
+ * Returns null when nothing usable is left.
+ */
+function toE164(raw) {
+  let value = String(raw == null ? '' : raw).trim();
+  if (!value) return null;
+
+  const hadPlus = value.startsWith('+');
+  let digits = value.replace(/\D/g, '');
+  if (!digits) return null;
+
+  if (hadPlus) return '+' + digits;
+  if (digits.startsWith('00')) return '+' + digits.slice(2);
+  // A single leading zero is the national trunk prefix: 031… -> +38631…
+  if (digits.startsWith('0')) return '+' + COUNTRY_CODE + digits.replace(/^0+/, '');
+  if (digits.startsWith(COUNTRY_CODE)) return '+' + digits;
+  return '+' + COUNTRY_CODE + digits;
+}
 
 /* ------------------------------------------------------------- templates */
 
@@ -57,6 +85,91 @@ async function deliverLog(phone, body) {
   console.log(`[SMS -> ${phone}] ${body}`);
 }
 
+/**
+ * Fill {{to}}, {{text}} and {{from}} into a body template, escaping each value
+ * for the target format so a quote or newline in a customer name cannot break
+ * the request.
+ */
+function renderTemplate(template, values, asJson) {
+  return String(template).replace(/\{\{(to|text|from)\}\}/g, (_, key) => {
+    const value = values[key] == null ? '' : String(values[key]);
+    // JSON.stringify gives us a quoted, escaped string; drop the outer quotes
+    // because the template already supplies them.
+    return asJson ? JSON.stringify(value).slice(1, -1) : value;
+  });
+}
+
+/**
+ * Post to any HTTP gateway. Configured entirely by environment:
+ *
+ *   SMS_HTTP_URL          required, the endpoint
+ *   SMS_HTTP_METHOD       default POST
+ *   SMS_HTTP_FORMAT       json (default) or form
+ *   SMS_HTTP_BODY         template using {{to}}, {{text}}, {{from}}
+ *   SMS_HTTP_HEADERS      extra headers as a JSON object
+ *   SMS_HTTP_USER / _PASS basic authentication
+ *   SMS_SENDER            value for {{from}}
+ */
+async function deliverHttp(phone, body) {
+  const url = process.env.SMS_HTTP_URL;
+  if (!url) throw new Error('SMS_HTTP_URL ni nastavljen');
+
+  const format = (process.env.SMS_HTTP_FORMAT || 'json').toLowerCase();
+  const asJson = format === 'json';
+  const template =
+    process.env.SMS_HTTP_BODY ||
+    (asJson ? '{"to":"{{to}}","text":"{{text}}"}' : 'to={{to}}&text={{text}}');
+
+  const values = { to: phone, text: body, from: process.env.SMS_SENDER || '' };
+  let payload = renderTemplate(template, values, asJson);
+
+  if (asJson) {
+    // Fail loudly on a malformed template rather than sending nonsense.
+    try {
+      JSON.parse(payload);
+    } catch {
+      throw new Error('SMS_HTTP_BODY ni veljaven JSON po vstavljanju vrednosti');
+    }
+  } else {
+    payload = new URLSearchParams(
+      payload.split('&').filter(Boolean).map((pair) => {
+        const at = pair.indexOf('=');
+        return at === -1 ? [pair, ''] : [pair.slice(0, at), pair.slice(at + 1)];
+      })
+    ).toString();
+  }
+
+  const headers = {
+    'Content-Type': asJson ? 'application/json' : 'application/x-www-form-urlencoded',
+    Accept: 'application/json',
+  };
+  if (process.env.SMS_HTTP_HEADERS) {
+    try {
+      Object.assign(headers, JSON.parse(process.env.SMS_HTTP_HEADERS));
+    } catch {
+      throw new Error('SMS_HTTP_HEADERS ni veljaven JSON');
+    }
+  }
+  if (process.env.SMS_HTTP_USER) {
+    const pair = `${process.env.SMS_HTTP_USER}:${process.env.SMS_HTTP_PASS || ''}`;
+    headers.Authorization = 'Basic ' + Buffer.from(pair).toString('base64');
+  }
+
+  // Never let a hanging gateway hold the employee's request open.
+  const timeoutMs = Number(process.env.SMS_HTTP_TIMEOUT_MS) || 10000;
+  const res = await fetch(url, {
+    method: process.env.SMS_HTTP_METHOD || 'POST',
+    headers,
+    body: payload,
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Prehod je odgovoril ${res.status}: ${text.slice(0, 200)}`);
+  }
+}
+
 async function deliverTwilio(phone, body) {
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
@@ -83,6 +196,7 @@ async function deliverTwilio(phone, body) {
 
 async function deliver(phone, body) {
   if (DRIVER === 'twilio') return deliverTwilio(phone, body);
+  if (DRIVER === 'http') return deliverHttp(phone, body);
   return deliverLog(phone, body);
 }
 
@@ -135,12 +249,31 @@ async function notify(kind, customer, appt) {
   }
 
   const body = build(customer, appt);
-  try {
-    await deliver(customer.phone, body);
+
+  // Gateways need E.164; the salon stores numbers as they are written locally.
+  const dialled = toE164(customer.phone);
+  if (!dialled) {
     log({
       appointment_id: appt && appt.id,
       customer_id: customer.id,
       phone: customer.phone,
+      kind,
+      body,
+      status: 'failed',
+      error: 'Telefonske številke ni mogoče pretvoriti v mednarodno obliko',
+    });
+    return {
+      status: 'failed',
+      message: 'Telefonska številka stranke ni v uporabni obliki. SMS ni bil poslan.',
+    };
+  }
+
+  try {
+    await deliver(dialled, body);
+    log({
+      appointment_id: appt && appt.id,
+      customer_id: customer.id,
+      phone: dialled,
       kind,
       body,
       status: 'sent',
@@ -150,7 +283,7 @@ async function notify(kind, customer, appt) {
     log({
       appointment_id: appt && appt.id,
       customer_id: customer.id,
-      phone: customer.phone,
+      phone: dialled,
       kind,
       body,
       status: 'failed',
@@ -170,4 +303,4 @@ function lastForAppointment(appointmentId) {
     .get(appointmentId);
 }
 
-module.exports = { notify, lastForAppointment, DRIVER };
+module.exports = { notify, lastForAppointment, toE164, DRIVER };

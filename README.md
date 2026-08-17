@@ -22,8 +22,12 @@ example services, products and customers.
 | `SALON_DB` | Database file | `data/salon.db` |
 | `SESSION_SECRET` | Session cookie signing key | dev-only placeholder |
 | `ADMIN_PASSWORD` | First-run admin password | `admin123` |
-| `SMS_DRIVER` | `log` or `twilio` | `log` |
+| `SMS_DRIVER` | `log`, `http` or `twilio` | `log` |
+| `SMS_HTTP_URL` etc. | Gateway configuration for the `http` driver — see DEPLOY.md | — |
+| `SMS_COUNTRY_CODE` | Country code for local numbers, no plus | `386` |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM` | Twilio credentials | — |
+
+**Putting this on a server, and making SMS actually send: see [DEPLOY.md](DEPLOY.md).**
 
 **Before using this anywhere real:** set `SESSION_SECRET` to a random value and
 change the admin password. The defaults exist only so the app runs out of the box.
@@ -71,7 +75,8 @@ modal, customer search, drag-and-drop, and the +/- counters — are handled by
 - **Deactivating an employee** blocks login and removes them from new bookings
   while keeping every appointment already assigned to them.
 - **SMS never blocks a save.** The appointment is stored first; a failed message
-  is reported and can be retried.
+  is reported and can be retried. Numbers are converted to E.164 before
+  sending, so `031 331 636` reaches the gateway as `+38631331636`.
 - **Branding comes from settings.** `logo_url` and `emblem_url` point at files
   under `public/` (e.g. `/img/logo.png`). The logo replaces the salon name in the
   site header, the staff top bar and the login card; the emblem appears on the
@@ -84,10 +89,17 @@ modal, customer search, drag-and-drop, and the +/- counters — are handled by
 ## Tests
 
 ```
-npm test
+npm test          # both suites
+npm run test:sms  # SMS only: number conversion and the HTTP gateway
+npm run test:http # the HTTP suite only
 ```
 
-Starts the app on a spare port against a throwaway database and runs
+`tests/sms.js` runs 36 checks: local-to-E.164 conversion, and the generic HTTP
+driver against a fake gateway that captures exactly what a real provider would
+receive — authentication headers, body format, escaping, timeouts, and the
+failure paths.
+
+The HTTP suite starts the app on a spare port against a throwaway database and runs
 `tests/e2e.js` over HTTP — 275 checks covering the public site, login and roles,
 the three calendar views, conflict rules, the visit counter and loyalty
 threshold, settings validation, SMS outcomes, services, products, employees,
