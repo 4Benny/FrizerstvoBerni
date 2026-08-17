@@ -3,6 +3,36 @@
 Dva dela: kako spraviti pošiljanje SMS v delovanje, in kako aplikacijo postaviti
 na strežnik, da teče sama.
 
+## Baza podatkov
+
+**Ločene baze podatkov ne potrebujete.** Ni treba namestiti PostgreSQL, MySQL ali
+česa podobnega, ni uporabniških imen ali gesel za bazo in ni dodatne storitve,
+ki bi lahko odpovedala. Baza je ena datoteka, `data/salon.db`, ki jo bere in
+piše Node sam prek vgrajenega modula `node:sqlite` (na voljo od Node 22.5).
+Ustvari se sama ob prvem zagonu.
+
+V praksi to pomeni: varnostna kopija je kopija ene datoteke (z ukazom
+`.backup`, glejte spodaj), preselitev na drug strežnik je prenos te datoteke,
+za salon z nekaj tisoč termini na leto pa je hitrost povsem zadostna.
+
+## Hitra namestitev
+
+Na svežem strežniku Ubuntu je vse skupaj en skript:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/4Benny/FrizerstvoBerni/main/deploy/setup.sh -o setup.sh
+less setup.sh          # preberite, preden zaženete
+sudo bash setup.sh
+```
+
+Vpraša za domeno, nato namesti Node in nginx, prenese kodo, ustvari sistemskega
+uporabnika, naključni `SESSION_SECRET` in geslo skrbnika, nastavi storitev
+systemd, nginx, požarni zid, po želji potrdilo Let's Encrypt in dnevno varnostno
+kopijo. Na koncu izpiše naslov strani in geslo skrbnika. Ponovni zagon skripta
+je varen — obstoječe baze in gesel ne povozi.
+
+Ostanek tega dokumenta razlaga iste korake ročno in opisuje nastavitev SMS.
+
 ---
 
 ## 1. SMS
