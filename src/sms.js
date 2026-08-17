@@ -14,7 +14,7 @@ const util = require('./util');
  *           messages come from the salon's own number
  *   twilio  Twilio's REST API
  *
- * See DEPLOY.md for worked configurations.
+ * See SETUP.md for worked configurations.
  */
 const DRIVER = process.env.SMS_DRIVER || 'log';
 

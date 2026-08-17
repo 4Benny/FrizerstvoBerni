@@ -1,4 +1,4 @@
-# Salon appointment system
+﻿# Salon appointment system
 
 A hair salon website plus a private staff area for managing appointments,
 customers, visit counters, services, employees, products and stock.
@@ -23,11 +23,13 @@ example services, products and customers.
 | `SESSION_SECRET` | Session cookie signing key | dev-only placeholder |
 | `ADMIN_PASSWORD` | First-run admin password | `admin123` |
 | `SMS_DRIVER` | `log`, `http` or `twilio` | `log` |
-| `SMS_HTTP_URL` etc. | Gateway configuration for the `http` driver — see DEPLOY.md | — |
+| `SMS_HTTP_URL` etc. | Gateway configuration for the `http` driver — see SETUP.md | — |
 | `SMS_COUNTRY_CODE` | Country code for local numbers, no plus | `386` |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM` | Twilio credentials | — |
 
-**Putting this on a server, and making SMS actually send: see [DEPLOY.md](DEPLOY.md).**
+**[SETUP.md](SETUP.md) is the full guide** — uploading to a server, running it,
+login details, SMS, backups, updating and troubleshooting.
+`deploy/setup.sh` does a fresh Ubuntu server in one command.
 
 **Before using this anywhere real:** set `SESSION_SECRET` to a random value and
 change the admin password. The defaults exist only so the app runs out of the box.

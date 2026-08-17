@@ -10,7 +10,9 @@
     "dev": "node --watch server.js",
     "test": "node tests/sms.js && node tests/run.js",
     "test:http": "node tests/run.js",
-    "test:sms": "node tests/sms.js"
+    "test:sms": "node tests/sms.js",
+    "accounts": "node scripts/reset-password.js --list",
+    "reset-password": "node scripts/reset-password.js"
   },
   "engines": {
     "node": ">=22.5.0"

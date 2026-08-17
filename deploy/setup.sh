@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 #
 # Namestitev aplikacije Frizerski salon Berni na svež strežnik Ubuntu/Debian.
 #
@@ -103,7 +103,7 @@ SALON_DB=${DATA_DIR}/salon.db
 ADMIN_PASSWORD=${ADMIN_PW}
 
 # SMS: privzeto se sporočila samo zapišejo v dnevnik in na telefon ne gre nič.
-# Za pravo pošiljanje glejte DEPLOY.md in nastavite spodnje vrstice.
+# Za pravo pošiljanje glejte SETUP.md in nastavite spodnje vrstice.
 SMS_DRIVER=log
 #SMS_DRIVER=http
 #SMS_HTTP_URL=http://192.168.1.50:8080/message
