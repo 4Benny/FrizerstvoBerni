@@ -1,0 +1,79 @@
+<%- include('partials/head') %>
+
+<p class="crumb"><a href="/app/products">← Izdelki</a></p>
+
+<div class="page-head">
+  <h1>Mesečno poročilo izdelkov</h1>
+</div>
+
+<% if (!months.length) { %>
+  <p class="empty">
+    Še ni zabeleženih gibanj. Poročilo se napolni, ko zabeležite prvo dobavo ali
+    prodajo.
+  </p>
+<% } else { %>
+  <div class="filterbar">
+    <% months.forEach(function (m) { %>
+      <a class="chip <%= m === month ? 'is-active' : '' %>"
+         href="/app/products/report?month=<%= encodeURIComponent(m) %>"><%= m %></a>
+    <% }); %>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat">
+      <span class="stat-value"><%= totals.in_qty %></span>
+      <span class="stat-label">dobavljenih kosov</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value"><%= totals.out_qty %></span>
+      <span class="stat-label">prodanih kosov</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value"><%= totals.revenue_display %></span>
+      <span class="stat-label">prihodek</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value"><%= totals.cost_display %></span>
+      <span class="stat-label">stroški dobave</span>
+    </div>
+  </div>
+
+  <% if (!rows.length) { %>
+    <p class="empty">V mesecu <%= month %> ni gibanj.</p>
+  <% } else { %>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Izdelek</th>
+            <th class="num">Dobavljeno</th>
+            <th class="num">Prodano</th>
+            <th class="num">Povpr. prodajna</th>
+            <th class="num">Prihodek</th>
+            <th class="num">Stroški</th>
+            <th class="num">Zaloga zdaj</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% rows.forEach(function (r) { %>
+            <tr>
+              <td><a class="strong-link" href="/app/products/<%= r.id %>"><%= r.name %></a></td>
+              <td class="num"><%= r.in_qty %></td>
+              <td class="num"><%= r.out_qty %></td>
+              <td class="num"><%= r.avg_sale_display %></td>
+              <td class="num"><strong><%= r.revenue_display %></strong></td>
+              <td class="num"><%= r.cost_display %></td>
+              <td class="num"><%= r.stock %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">
+      Stroški dobave so vpisani samo tam, kjer je bila ob dobavi vnesena nabavna
+      cena. Popravki (lom, poraba v salonu) niso šteti ne v prodajo ne v prihodek.
+    </p>
+  <% } %>
+<% } %>
+
+<%- include('partials/foot') %>

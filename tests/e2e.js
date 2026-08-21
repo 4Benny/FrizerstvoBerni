@@ -706,6 +706,43 @@ function settingsForm(over = {}) {
   r = await req('/app/products?q=' + encodeURIComponent('ampon'));
   ok('product search works', r.text.includes('Šampon') && !r.text.includes('Balzam'));
 
+  section('product supply, sales and the monthly report');
+  // Supply with a purchase price, then a sale at a discount, then a
+  // correction — the three things the counter actually does.
+  r = await req('/app/products/1/supply', { method: 'POST', form: {
+    quantity: '10', price: '6.00', note: 'dobavitelj Marec',
+  }});
+  ok('supply recorded', r.status === 302, 'status ' + r.status);
+  r = await req('/app/products/1/sale', { method: 'POST', form: { quantity: '2', price: '9.90' } });
+  ok('sale recorded', r.status === 302, 'status ' + r.status);
+  r = await req('/app/products/1/correct', { method: 'POST', form: { delta: '-1', note: 'lom' } });
+  ok('correction recorded', r.status === 302, 'status ' + r.status);
+
+  r = await req('/app/products/1/supply', { method: 'POST', form: { quantity: '0' } });
+  ok('supply of zero is refused', r.status === 302);
+  r = await req('/app/products/1/sale', { method: 'POST', form: { quantity: '1', price: 'veliko' } });
+  ok('an unparseable price is refused', r.status === 302);
+
+  r = await req('/app/products/1');
+  ok('product page shows the monthly table', r.text.includes('Po mesecih'));
+  ok('product page shows the movement history', r.text.includes('Zadnja gibanja'));
+  ok('the history shows the supply note', r.text.includes('dobavitelj Marec'));
+  ok('the history shows the correction reason', r.text.includes('lom'));
+  ok('the history labels a sale', r.text.includes('Prodaja'));
+  ok('the history labels a supply', r.text.includes('Dobava'));
+  ok('the history labels a correction', r.text.includes('Popravek'));
+
+  r = await req('/app/products/report');
+  ok('monthly report loads', r.status === 200 && r.text.includes('Mesečno poročilo'),
+    'status ' + r.status);
+  ok('the report names the product', r.text.includes('Šampon'));
+  ok('the report shows revenue', /prihodek/i.test(r.text));
+  r = await req('/app/products/report?month=1999-01');
+  ok('an unknown month falls back instead of erroring', r.status === 200);
+
+  // "report" must not be swallowed by the /:id route.
+  ok('the report is not treated as a product id', !r.text.includes('Uredi izdelek'));
+
   /* --------------------------------------------------------------- customers */
 
   section('customer pages');

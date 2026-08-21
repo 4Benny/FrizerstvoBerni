@@ -6,6 +6,7 @@ const customers = require('../repo/customers');
 const employees = require('../repo/employees');
 const services = require('../repo/services');
 const products = require('../repo/products');
+const productMoves = require('../repo/product-moves');
 const settings = require('../settings');
 const sms = require('../sms');
 const util = require('../util');
@@ -442,18 +443,48 @@ router.post('/products/:id/quantity', (req, res) => {
   const product = products.get(req.params.id);
   if (!product) return fail(res, 404, 'Izdelka ni mogoče najti.');
 
-  let updated;
+  // Every stock change is recorded as a movement, never applied silently, so
+  // the monthly supply-and-sales figures cannot quietly lose a sale.
+  let result;
   if (req.body.quantity !== undefined && req.body.quantity !== '') {
     const value = Number(req.body.quantity);
     if (!Number.isFinite(value) || value < 0) {
       return fail(res, 400, 'Vpišite količino 0 ali več.');
     }
-    updated = products.setQuantity(product.id, value);
+    const delta = value - product.quantity;
+    if (!delta) {
+      return res.json({
+        ok: true,
+        product: { id: product.id, quantity: product.quantity },
+        message: 'Zaloga je nespremenjena.',
+      });
+    }
+    // An exact count is a correction of the difference: no price, so it never
+    // lands in the month's revenue.
+    result = productMoves.record({
+      product_id: product.id,
+      kind: 'adjust',
+      quantity: delta,
+      employee_id: req.user && req.user.id,
+      note: 'Nastavljena točna količina',
+    });
   } else {
     const delta = Number(req.body.delta);
     if (!Number.isFinite(delta) || delta === 0) return fail(res, 400, 'Ni česa spremeniti.');
-    updated = products.adjustQuantity(product.id, delta);
+    // Minus at the counter is a sale at the product's current price; plus is
+    // supply arriving. Breakage or salon use goes through Popravek instead.
+    const selling = delta < 0;
+    result = productMoves.record({
+      product_id: product.id,
+      kind: selling ? 'out' : 'in',
+      quantity: Math.abs(delta),
+      unit_price_cents: selling ? product.price_cents : 0,
+      employee_id: req.user && req.user.id,
+    });
   }
+
+  if (!result.ok) return fail(res, 400, result.error);
+  const updated = result.product;
 
   return res.json({
     ok: true,

@@ -90,6 +90,32 @@ CREATE INDEX IF NOT EXISTS idx_appt_date     ON appointments(date);
 CREATE INDEX IF NOT EXISTS idx_appt_emp_date ON appointments(employee_id, date);
 CREATE INDEX IF NOT EXISTS idx_appt_customer ON appointments(customer_id);
 
+-- Every change to a product's stock, so the salon can see per month how much
+-- was supplied, how much was sold, and at what price it went out.
+--
+-- quantity is SIGNED and is the effect on stock: supply is positive, a sale is
+-- negative, a correction is either. unit_price_cents is the price per unit at
+-- the moment of the movement — the sale price for 'out', the purchase price for
+-- 'in' — which is what makes a per-month price history possible even after the
+-- product's current price is edited.
+--
+-- month is stored rather than derived from created_at because created_at is UTC:
+-- grouping on it would put a sale made late on the 31st into the wrong month.
+CREATE TABLE IF NOT EXISTS product_moves (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id       INTEGER NOT NULL REFERENCES products(id),
+  kind             TEXT NOT NULL,
+  quantity         INTEGER NOT NULL,
+  unit_price_cents INTEGER NOT NULL DEFAULT 0,
+  total_cents      INTEGER NOT NULL DEFAULT 0,
+  employee_id      INTEGER,
+  note             TEXT NOT NULL DEFAULT '',
+  month            TEXT NOT NULL,
+  created_at       TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_moves_product ON product_moves(product_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_moves_month   ON product_moves(month);
+
 -- The SMS outbox. Rows are created the moment an appointment is saved and a
 -- background worker delivers them, so the front desk never waits for a
 -- gateway. The status column tracks the whole life of one message:

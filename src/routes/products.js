@@ -2,11 +2,29 @@
 
 const express = require('express');
 const products = require('../repo/products');
+const moves = require('../repo/product-moves');
 const util = require('../util');
 const { requireLogin, setFlash } = require('../middleware');
 
 const router = express.Router();
 router.use(requireLogin);
+
+/**
+ * The one-click +/- buttons. Minus is a sale at the product's current price,
+ * because that is what it almost always is at the counter; plus is supply
+ * arriving, with no purchase price since none was typed. Anything else —
+ * breakage, salon use, a miscount — goes through Popravek on the product page.
+ */
+function quickMove(product, delta, user) {
+  const selling = delta < 0;
+  return moves.record({
+    product_id: product.id,
+    kind: selling ? 'out' : 'in',
+    quantity: Math.abs(delta),
+    unit_price_cents: selling ? product.price_cents : 0,
+    employee_id: user && user.id,
+  });
+}
 
 router.get('/', (req, res) => {
   const query = util.str(req.query.q, 80);
@@ -61,10 +79,35 @@ router.post('/new', (req, res) => {
   res.redirect(`/app/products/${product.id}`);
 });
 
+/**
+ * Monthly overview across all products. Mounted before /:id so that the word
+ * "report" is not taken for a product id.
+ */
+router.get('/report', (req, res) => {
+  const available = moves.months();
+  const month =
+    /^\d{4}-\d{2}$/.test(String(req.query.month || '')) && available.includes(req.query.month)
+      ? req.query.month
+      : available[0] || moves.monthKey();
+
+  res.render('staff/product-report', {
+    title: 'Mesečno poročilo izdelkov',
+    month,
+    months: available,
+    rows: moves.monthlySummary(month),
+    totals: moves.monthTotals(month),
+  });
+});
+
 router.get('/:id', (req, res, next) => {
   const product = products.get(req.params.id);
   if (!product) return next();
-  res.render('staff/product-page', { title: product.name, product });
+  res.render('staff/product-page', {
+    title: product.name,
+    product,
+    monthly: moves.monthlyForProduct(product.id),
+    history: moves.listForProduct(product.id, 30),
+  });
 });
 
 router.get('/:id/edit', (req, res, next) => {
@@ -95,8 +138,114 @@ router.post('/:id/edit', (req, res, next) => {
   products.update(product.id, values);
   // Quantity is edited through the +/- controls and the exact-value field, but
   // the form carries it too so a single save can correct everything at once.
-  products.setQuantity(product.id, values.quantity);
+  // Recorded as a correction rather than written straight to the product, so
+  // the stock history has no unexplained jumps.
+  const quantityDelta = values.quantity - product.quantity;
+  if (quantityDelta) {
+    moves.record({
+      product_id: product.id,
+      kind: 'adjust',
+      quantity: quantityDelta,
+      employee_id: req.user && req.user.id,
+      note: 'Popravljeno pri urejanju izdelka',
+    });
+  }
   setFlash(req, 'success', 'Izdelek je shranjen.');
+  res.redirect(`/app/products/${product.id}`);
+});
+
+/**
+ * Record supply arriving. The purchase price is optional — the salon may only
+ * care how many came in — but when given it is what makes the per-month price
+ * history and the margin column possible.
+ */
+router.post('/:id/supply', (req, res, next) => {
+  const product = products.get(req.params.id);
+  if (!product) return next();
+
+  const quantity = Number(req.body.quantity);
+  const priceRaw = String(req.body.price == null ? '' : req.body.price).trim();
+  const price = priceRaw === '' ? 0 : util.parseMoney(priceRaw);
+
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    setFlash(req, 'error', 'Vpišite količino dobave.');
+  } else if (price === null) {
+    setFlash(req, 'error', 'Nabavna cena ni v pravi obliki.');
+  } else {
+    const result = moves.record({
+      product_id: product.id,
+      kind: 'in',
+      quantity,
+      unit_price_cents: price,
+      employee_id: req.user && req.user.id,
+      note: util.str(req.body.note, 300),
+    });
+    setFlash(
+      req,
+      result.ok ? 'success' : 'error',
+      result.ok ? 'Dobava je zabeležena.' : result.error
+    );
+  }
+  res.redirect(`/app/products/${product.id}`);
+});
+
+/** Record a sale. The price defaults to the product's current price. */
+router.post('/:id/sale', (req, res, next) => {
+  const product = products.get(req.params.id);
+  if (!product) return next();
+
+  const quantity = Number(req.body.quantity);
+  const priceRaw = String(req.body.price == null ? '' : req.body.price).trim();
+  const price = priceRaw === '' ? product.price_cents : util.parseMoney(priceRaw);
+
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    setFlash(req, 'error', 'Vpišite prodano količino.');
+  } else if (price === null) {
+    setFlash(req, 'error', 'Prodajna cena ni v pravi obliki.');
+  } else {
+    const result = moves.record({
+      product_id: product.id,
+      kind: 'out',
+      quantity,
+      unit_price_cents: price,
+      employee_id: req.user && req.user.id,
+      note: util.str(req.body.note, 300),
+    });
+    setFlash(
+      req,
+      result.ok ? 'success' : 'error',
+      result.ok ? 'Prodaja je zabeležena.' : result.error
+    );
+  }
+  res.redirect(`/app/products/${product.id}`);
+});
+
+/**
+ * A correction: stock was miscounted, something broke, or was taken for use in
+ * the salon. Deliberately carries no price, so it never touches the revenue or
+ * the average price for the month.
+ */
+router.post('/:id/correct', (req, res, next) => {
+  const product = products.get(req.params.id);
+  if (!product) return next();
+
+  const delta = Number(req.body.delta);
+  if (!Number.isFinite(delta) || delta === 0) {
+    setFlash(req, 'error', 'Vpišite popravek, na primer -2 ali 3.');
+  } else {
+    const result = moves.record({
+      product_id: product.id,
+      kind: 'adjust',
+      quantity: delta,
+      employee_id: req.user && req.user.id,
+      note: util.str(req.body.note, 300),
+    });
+    setFlash(
+      req,
+      result.ok ? 'success' : 'error',
+      result.ok ? 'Popravek je zabeležen.' : result.error
+    );
+  }
   res.redirect(`/app/products/${product.id}`);
 });
 
@@ -110,13 +259,24 @@ router.post('/:id/quantity', (req, res, next) => {
     if (!Number.isFinite(value) || value < 0) {
       setFlash(req, 'error', 'Količina mora biti 0 ali več.');
     } else {
-      products.setQuantity(product.id, value);
+      // Setting an exact count is a correction of the difference, so the stock
+      // history stays complete rather than jumping without explanation.
+      const delta = value - product.quantity;
+      if (delta) {
+        moves.record({
+          product_id: product.id,
+          kind: 'adjust',
+          quantity: delta,
+          employee_id: req.user && req.user.id,
+          note: 'Nastavljena točna količina',
+        });
+      }
       setFlash(req, 'success', 'Zaloga je spremenjena.');
     }
   } else {
     const delta = Number(req.body.delta) || 0;
     if (delta) {
-      products.adjustQuantity(product.id, delta);
+      quickMove(product, delta, req.user);
       setFlash(req, 'success', 'Zaloga je spremenjena.');
     }
   }

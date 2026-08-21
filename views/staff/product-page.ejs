@@ -5,41 +5,180 @@
 <div class="page-head">
   <h1><%= product.name %><% if (!product.active) { %> <span class="tag tag-muted">IZKLOPLJEN</span><% } %></h1>
   <div class="page-actions">
+    <a class="btn btn-quiet" href="/app/products/report">Mesečno poročilo</a>
     <a class="btn" href="/app/products/<%= product.id %>/edit">Uredi izdelek</a>
   </div>
 </div>
 
 <div class="cols">
   <section class="card" data-product="<%= product.id %>">
-    <h2>Količina</h2>
+    <h2>Zaloga</h2>
 
     <div class="counter counter-big">
       <button type="button" class="btn btn-round" data-stock-delta="-1" data-id="<%= product.id %>"
-              aria-label="Zmanjšaj količino">−</button>
+              aria-label="Prodan en kos">−</button>
       <output class="counter-value" data-stock-value="<%= product.id %>"><%= product.quantity %></output>
       <button type="button" class="btn btn-round btn-primary" data-stock-delta="1" data-id="<%= product.id %>"
-              aria-label="Povečaj količino">+</button>
+              aria-label="Dobavljen en kos">+</button>
     </div>
-
-    <form method="post" action="/app/products/<%= product.id %>/quantity" class="inline-form">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <input type="hidden" name="action" value="set">
-      <label for="set-qty">Nastavi točno količino</label>
-      <input id="set-qty" name="quantity" type="number" min="0" max="999999"
-             value="<%= product.quantity %>" inputmode="numeric">
-      <button type="submit" class="btn">Shrani količino</button>
-    </form>
+    <p class="hint">
+      − zabeleži prodajo po ceni <strong><%= util.formatMoney(product.price_cents) %></strong>,
+      + zabeleži dobavo. Za lom ali porabo v salonu uporabite <em>Popravek</em>.
+    </p>
   </section>
 
   <section class="card">
     <h2>Podrobnosti</h2>
     <dl class="detail-list">
-      <div><dt>Cena</dt><dd><%= util.formatMoney(product.price_cents) %></dd></div>
+      <div><dt>Prodajna cena</dt><dd><%= util.formatMoney(product.price_cents) %></dd></div>
       <div><dt>Stanje</dt><dd><%= product.active ? 'Aktiven' : 'Izklopljen' %></dd></div>
     </dl>
     <h3>Opis</h3>
     <p class="notes-body"><%= product.description || '—' %></p>
   </section>
 </div>
+
+<div class="cols cols-3">
+  <section class="card form">
+    <h2>Dobava</h2>
+    <form method="post" action="/app/products/<%= product.id %>/supply">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field">
+        <label for="supply-qty">Količina</label>
+        <input id="supply-qty" name="quantity" type="number" min="1" max="999999"
+               inputmode="numeric" required>
+      </div>
+      <div class="field">
+        <label for="supply-price">Nabavna cena na kos</label>
+        <input id="supply-price" name="price" type="text" inputmode="decimal" placeholder="neobvezno">
+      </div>
+      <div class="field">
+        <label for="supply-note">Opomba</label>
+        <input id="supply-note" name="note" type="text" maxlength="300" placeholder="dobavitelj, račun…">
+      </div>
+      <button type="submit" class="btn btn-primary">Zabeleži dobavo</button>
+    </form>
+  </section>
+
+  <section class="card form">
+    <h2>Prodaja</h2>
+    <form method="post" action="/app/products/<%= product.id %>/sale">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field">
+        <label for="sale-qty">Količina</label>
+        <input id="sale-qty" name="quantity" type="number" min="1" max="999999"
+               value="1" inputmode="numeric" required>
+      </div>
+      <div class="field">
+        <label for="sale-price">Prodajna cena na kos</label>
+        <input id="sale-price" name="price" type="text" inputmode="decimal"
+               value="<%= (product.price_cents / 100).toFixed(2) %>">
+        <p class="hint">Spremenite, če je bila prodana po drugi ceni (popust, akcija).</p>
+      </div>
+      <div class="field">
+        <label for="sale-note">Opomba</label>
+        <input id="sale-note" name="note" type="text" maxlength="300">
+      </div>
+      <button type="submit" class="btn btn-primary">Zabeleži prodajo</button>
+    </form>
+  </section>
+
+  <section class="card form">
+    <h2>Popravek</h2>
+    <form method="post" action="/app/products/<%= product.id %>/correct">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field">
+        <label for="correct-delta">Sprememba zaloge</label>
+        <input id="correct-delta" name="delta" type="number" step="1"
+               placeholder="-2 ali 3" inputmode="numeric" required>
+        <p class="hint">Brez cene — ne šteje v prihodek meseca.</p>
+      </div>
+      <div class="field">
+        <label for="correct-note">Razlog</label>
+        <input id="correct-note" name="note" type="text" maxlength="300"
+               placeholder="lom, poraba v salonu, napačno šteto">
+      </div>
+      <button type="submit" class="btn">Zabeleži popravek</button>
+    </form>
+  </section>
+</div>
+
+<section class="card">
+  <h2>Po mesecih</h2>
+  <% if (!monthly.length) { %>
+    <p class="empty">Za ta izdelek še ni zabeleženih gibanj.</p>
+  <% } else { %>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Mesec</th>
+            <th class="num">Dobavljeno</th>
+            <th class="num">Prodano</th>
+            <th class="num">Prihodek</th>
+            <th class="num">Povpr. prodajna</th>
+            <th class="num">Povpr. nabavna</th>
+            <th class="num">Razlika</th>
+            <th class="num">Popravki</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% monthly.forEach(function (m) { %>
+            <tr>
+              <td class="nowrap"><strong><%= m.month %></strong></td>
+              <td class="num"><%= m.in_qty %></td>
+              <td class="num"><%= m.out_qty %></td>
+              <td class="num"><%= m.revenue_display %></td>
+              <td class="num"><%= m.avg_sale_display %></td>
+              <td class="num"><%= m.avg_buy_display %></td>
+              <td class="num"><%= m.margin_display %></td>
+              <td class="num"><%= m.adjust_qty || '—' %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">
+      Povprečna cena je utežena s količino in upošteva samo kose, ki so imeli
+      vpisano ceno.
+    </p>
+  <% } %>
+</section>
+
+<section class="card">
+  <h2>Zadnja gibanja</h2>
+  <% if (!history.length) { %>
+    <p class="empty">Ni zapisov.</p>
+  <% } else { %>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Čas</th>
+            <th>Vrsta</th>
+            <th class="num">Kos</th>
+            <th class="num">Cena/kos</th>
+            <th class="num">Skupaj</th>
+            <th>Zaposlen</th>
+            <th>Opomba</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% history.forEach(function (h) { %>
+            <tr>
+              <td class="nowrap"><%= String(h.created_at).replace('T', ' ').slice(0, 16) %></td>
+              <td><span class="pill pill-move-<%= h.kind %>"><%= h.kind_label %></span></td>
+              <td class="num"><%= h.quantity > 0 ? '+' + h.quantity : h.quantity %></td>
+              <td class="num"><%= h.unit_price_cents ? h.unit_price_display : '—' %></td>
+              <td class="num"><%= h.total_cents ? h.total_display : '—' %></td>
+              <td><%= h.employee_name || '—' %></td>
+              <td><%= h.note || '' %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</section>
 
 <%- include('partials/foot') %>

@@ -19,10 +19,11 @@ whoever installs it.
 6. [Login details](#6-login-details)
 7. [Setting up SMS](#7-setting-up-sms)
 8. [Filling in the salon's own details](#8-filling-in-the-salons-own-details)
-9. [Backups and restoring](#9-backups-and-restoring)
-10. [Updating](#10-updating)
-11. [Troubleshooting](#11-troubleshooting)
-12. [Before you go live](#12-before-you-go-live)
+9. [Products: supply, sales and monthly prices](#9-products-supply-sales-and-monthly-prices)
+10. [Backups and restoring](#10-backups-and-restoring)
+11. [Updating](#11-updating)
+12. [Troubleshooting](#12-troubleshooting)
+13. [Before you go live](#13-before-you-go-live)
 
 ---
 
@@ -37,7 +38,7 @@ onwards). It is created automatically the first time the app starts.
 
 What that means in practice:
 
-- **Backup** = copy one file (with `sqlite3 .backup`, see section 9)
+- **Backup** = copy one file (with `sqlite3 .backup`, see section 10)
 - **Move to another server** = copy that one file across
 - **Speed** — fine for a salon; thousands of appointments a year is nothing
 - **The one rule** — never copy it with plain `cp` while the app is running. It
@@ -91,7 +92,7 @@ Useful while developing:
 
 ```
 npm run dev             # restarts automatically when you edit a file
-npm test                # 321 checks
+npm test                # 464 checks
 npm run accounts        # list the login accounts
 ```
 
@@ -572,7 +573,7 @@ never see *Dostavljeno*.
 ```bash
 sudo nano /etc/salon.env
 sudo systemctl restart salon        # required after any change here
-npm test                            # 397 checks, no provider needed
+npm test                            # 464 checks, no provider needed
 ```
 
 Then tick the box in Nastavitve and book one appointment for a customer whose
@@ -619,7 +620,42 @@ than deleted, keeping old bookings readable.
 
 ---
 
-## 9. Backups and restoring
+## 9. Products: supply, sales and monthly prices
+
+Every change to a product's stock is recorded, so **Izdelki → Mesečno
+poročilo** can answer, for any month: how many came in, how many went out,
+and what they actually sold for.
+
+Three kinds of movement:
+
+| | What it means | Counts as |
+|---|---|---|
+| **Dobava** | supply arrived | stock up; purchase price optional |
+| **Prodaja** | sold to a customer | stock down; revenue for that month |
+| **Popravek** | breakage, salon use, miscount | stock only — never revenue |
+
+At the counter the **+ and − buttons** are the fast path: **−** records a sale
+at the product's current price, **+** records supply. Anything unusual — a
+discount, a bottle that broke, stock used on a client — goes through the three
+forms on the product page, where the price and a reason can be typed.
+
+The point of recording the price on each line is that it does not follow the
+product's current price. If a supplier raises their price in March and the
+shelf price goes up with it, February still shows what February sold for. That
+is what makes the per-month price history on the product page real rather than
+a recalculation.
+
+Average prices are weighted by quantity, and only units that carried a price
+are counted — so a quick one-click sale does not drag the month's average
+towards zero.
+
+Selling more than the stock count allows is recorded in full, while the count
+itself stops at zero: the sale happened, the count was simply wrong. Fix the
+count with a Popravek.
+
+---
+
+## 10. Backups and restoring
 
 The database is one file, but **never copy it with `cp` while the app runs** —
 WAL mode means a plain copy can be inconsistent.
@@ -655,7 +691,7 @@ sudo systemctl start salon
 
 ---
 
-## 10. Updating
+## 11. Updating
 
 Update in place — never re-clone. `data/` lives outside the repository, so a
 fresh clone would not lose data, but it would throw away the configured remote
@@ -689,7 +725,7 @@ journalctl -u salon -n 20 | grep SMS      # expect: [SMS] gonilnik: …
 
 ---
 
-## 11. Troubleshooting
+## 12. Troubleshooting
 
 **Nothing loads at all**
 
@@ -738,12 +774,12 @@ hours, and the grid deliberately widens so it is never hidden. Not a fault.
 **Check the whole thing still works**
 
 ```bash
-cd /opt/salon/app && npm test        # 321 checks, uses a throwaway database
+cd /opt/salon/app && npm test        # 464 checks, uses a throwaway database
 ```
 
 ---
 
-## 12. Before you go live
+## 13. Before you go live
 
 - [ ] `SESSION_SECRET` is a random value, not the development default
 - [ ] the `admin` password has been changed from `admin123`

@@ -1293,3 +1293,13 @@ tr.is-problem { background: #fffaf9; }
 .pager-page { font-size: .85rem; color: var(--ink-soft); }
 
 .field-narrow { max-width: 16rem; }
+
+/* ------------------------------------------------------ gibanja izdelkov */
+
+.cols-3 { grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.pill-move-in     { background: var(--ok-soft);    color: var(--ok); }
+.pill-move-out    { background: var(--brand-soft); color: var(--brand-dark); }
+.pill-move-adjust { background: var(--warn-soft);  color: var(--warn); }
