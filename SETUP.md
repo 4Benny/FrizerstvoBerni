@@ -657,18 +657,35 @@ sudo systemctl start salon
 
 ## 10. Updating
 
+Update in place — never re-clone. `data/` lives outside the repository, so a
+fresh clone would not lose data, but it would throw away the configured remote
+and access token for nothing.
+
 ```bash
 cd /opt/salon/app
+sudo -u salon cp /opt/salon/data/salon.db /opt/salon/data/salon-backup.db
 sudo -u salon git pull
 sudo -u salon npm ci --omit=dev
+sudo -u salon SALON_DB=/opt/salon/data/salon.db npm test
 sudo systemctl restart salon
 ```
+
+The `npm test` line runs the upgrade test first, so a schema problem shows up
+**before** the service restarts rather than after. It needs no SMS provider and
+touches no real data.
 
 The restart is **required** after any CSS or JavaScript change: asset URLs carry
 a version token that only changes at startup, and browsers cache them for an
 hour otherwise.
 
-Your data is untouched by updates — `data/` is not in the repository.
+Your data is untouched by updates — `data/` is not in the repository. Schema
+changes are applied automatically on the first start after an update.
+
+Check the new code is really running:
+
+```bash
+journalctl -u salon -n 20 | grep SMS      # expect: [SMS] gonilnik: …
+```
 
 ---
 
