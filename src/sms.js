@@ -44,6 +44,17 @@ const REMINDER_TICK_MS = Math.max(
 const BATCH = Math.max(1, Number(process.env.SMS_BATCH) || 5);
 
 /**
+ * How long a finished message is kept. The log holds a customer's phone number
+ * and the full text that was sent to them, so it is personal data with a
+ * shelf life: useful while someone might ask "did she get the message", of no
+ * use years later.
+ */
+const HISTORY_MONTHS = Math.max(
+  1,
+  Math.round(Number(process.env.SMS_HISTORY_MONTHS) || 12)
+);
+
+/**
  * Statuses a row can hold. `accepted` means the gateway took the message —
  * that is not the same as arriving, which only `delivered` proves.
  */
@@ -719,10 +730,49 @@ function requeue(id) {
   return { ok: true };
 }
 
+/* --------------------------------------------------------------- retention */
+
+/** The oldest moment that is kept. created_at is ISO, so this compares as text. */
+function pruneCutoff(months = HISTORY_MONTHS, now = new Date()) {
+  return new Date(
+    now.getFullYear(),
+    now.getMonth() - months,
+    now.getDate(),
+    now.getHours(),
+    now.getMinutes(),
+    now.getSeconds()
+  ).toISOString();
+}
+
+/**
+ * Delete finished messages older than the retention window.
+ *
+ * A message that has not finished is never deleted, however old the row is: a
+ * queued or retrying message is still owed to a customer, and losing it would
+ * mean the appointment silently never gets its SMS.
+ *
+ * Reminder de-duplication reads this table, so in principle forgetting a
+ * reminder row could let one be sent twice. In practice it cannot: reminders
+ * are only ever queued for appointments that are still in the future, and a row
+ * old enough to be pruned belongs to an appointment long past.
+ */
+function prune({ months = HISTORY_MONTHS, now = new Date() } = {}) {
+  const cutoff = pruneCutoff(months, now);
+  const info = db
+    .prepare(
+      `DELETE FROM sms_log
+        WHERE created_at < ?
+          AND status NOT IN ('queued', 'sending', 'retry')`
+    )
+    .run(cutoff);
+  return { deleted: info.changes, cutoff };
+}
+
 /* ------------------------------------------------------------------ timers */
 
 let sendTimer = null;
 let reminderTimer = null;
+let pruneTimer = null;
 
 /**
  * Start the background worker. Called once from server.js — never from tests,
@@ -758,16 +808,32 @@ function startWorker() {
     console.log(`[SMS] ponovno v vrsto po ponovnem zagonu: ${stuck.changes}`);
   }
 
+  const runPrune = () => {
+    try {
+      const out = prune();
+      if (out.deleted) {
+        console.log(`[SMS] pobrisanih starih sporočil: ${out.deleted}`);
+      }
+    } catch (err) {
+      console.error('[SMS] napaka pri čiščenju dnevnika:', (err && err.message) || err);
+    }
+  };
+  runPrune();
+  pruneTimer = setInterval(runPrune, 24 * 60 * 60 * 1000);
+
   console.log(
-    `[SMS] gonilnik: ${DRIVER}; pošiljanje vsakih ${Math.round(SEND_TICK_MS / 1000)}s`
+    `[SMS] gonilnik: ${DRIVER}; pošiljanje vsakih ${Math.round(SEND_TICK_MS / 1000)}s; ` +
+      `dnevnik ${HISTORY_MONTHS} mesecev`
   );
 }
 
 function stopWorker() {
   if (sendTimer) clearInterval(sendTimer);
   if (reminderTimer) clearInterval(reminderTimer);
+  if (pruneTimer) clearInterval(pruneTimer);
   sendTimer = null;
   reminderTimer = null;
+  pruneTimer = null;
 }
 
 module.exports = {
@@ -777,7 +843,10 @@ module.exports = {
   DUE_STATUSES,
   PENDING_STATUSES,
   MAX_ATTEMPTS,
+  HISTORY_MONTHS,
   toE164,
+  prune,
+  pruneCutoff,
   enqueue,
   processDue,
   scanReminders,

@@ -92,7 +92,7 @@ Useful while developing:
 
 ```
 npm run dev             # restarts automatically when you edit a file
-npm test                # 554 checks
+npm test                # 566 checks
 npm run accounts        # list the login accounts
 ```
 
@@ -434,6 +434,19 @@ something failed and a **Pošlji znova** button that puts a failed message back
 in the queue with a fresh set of attempts. Use this screen rather than the
 command line for day-to-day checking.
 
+**Finished messages are deleted after 12 months.** The log holds a customer's
+phone number and the full text that was sent to them, so it is personal data
+with a shelf life: worth keeping while somebody might ask "did she get the
+message", of no use years later. The clean-up runs at startup and once a day.
+
+```
+SMS_HISTORY_MONTHS=24
+```
+
+A message that has **not** finished is never deleted, however old the row is. A
+queued or retrying message is still owed to a customer, and dropping it would
+mean the appointment silently never gets its SMS.
+
 ### About the sender number
 
 **031 331 636 is your own mobile number, and a commercial gateway cannot simply
@@ -565,6 +578,7 @@ never see *Dostavljeno*.
 | `SMS_TICK_MS` | `15000` | how often the outbox is checked |
 | `SMS_BATCH` | `5` | messages sent per pass |
 | `SMS_REMINDER_TICK_MS` | `300000` | how often reminders are scanned |
+| `SMS_HISTORY_MONTHS` | `12` | how long finished messages are kept |
 | `SMS_HTTP_TIMEOUT_MS` | `10000` | give up on a silent gateway |
 | `SMS_COUNTRY_CODE` | `386` | country for local numbers |
 
@@ -573,7 +587,7 @@ never see *Dostavljeno*.
 ```bash
 sudo nano /etc/salon.env
 sudo systemctl restart salon        # required after any change here
-npm test                            # 554 checks, no provider needed
+npm test                            # 566 checks, no provider needed
 ```
 
 Then tick the box in Nastavitve and book one appointment for a customer whose
@@ -826,7 +840,7 @@ hours, and the grid deliberately widens so it is never hidden. Not a fault.
 **Check the whole thing still works**
 
 ```bash
-cd /opt/salon/app && npm test        # 554 checks, uses a throwaway database
+cd /opt/salon/app && npm test        # 566 checks, uses a throwaway database
 ```
 
 ---
@@ -843,6 +857,8 @@ cd /opt/salon/app && npm test        # 554 checks, uses a throwaway database
       depend on it
 - [ ] you have decided whether reminders before the appointment are on, and
       accepted the extra message per appointment
+- [ ] you are happy with how long the SMS log keeps phone numbers and message
+      text (12 months by default)
 - [ ] `SMS_DLR_SECRET` is set if you want to see *Dostavljeno* rather than
       only *Oddano prehodu*
 - [ ] the logo and emblem show on the public site — an upgraded database

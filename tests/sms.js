@@ -403,6 +403,64 @@ section('separators inside the message cannot corrupt the body');
   ok('no reminders when SMS itself is off', sms.scanReminders().queued === 0);
   settings.set('sms_enabled', '1');
 
+  section('the log is kept for a year, then forgotten');
+
+  // Plant rows at known ages. created_at is written directly because the
+  // whole point is to have messages older than the retention window.
+  const plant = (createdAt, status, kind) => {
+    const info = db
+      .prepare(
+        `INSERT INTO sms_log
+           (appointment_id, customer_id, phone, kind, body, status, error,
+            attempts, next_attempt_at, provider_id, updated_at, created_at)
+         VALUES (NULL, 1, '+38631000000', ?, 'staro sporocilo', ?, '', 1, '', '', ?, ?)`
+      )
+      .run(kind, status, createdAt, createdAt);
+    return Number(info.lastInsertRowid);
+  };
+
+  const NOW = new Date(2027, 0, 20, 12, 0, 0);
+  const iso = (y, m, d) => new Date(y, m - 1, d, 9, 0, 0).toISOString();
+
+  const ancient = plant(iso(2023, 2, 10), 'delivered', 'booked');
+  const oldFailed = plant(iso(2024, 11, 5), 'dead', 'cancelled');
+  const justOutside = plant(iso(2025, 12, 1), 'accepted', 'booked');
+  const justInside = plant(iso(2026, 3, 1), 'delivered', 'reminder');
+  const recent = plant(iso(2027, 1, 2), 'accepted', 'booked');
+  // Old but unfinished: still owed to a customer, must survive.
+  const stillQueued = plant(iso(2023, 5, 5), 'queued', 'booked');
+  const stillRetrying = plant(iso(2023, 6, 6), 'retry', 'booked');
+
+  ok('the cutoff is twelve months back',
+    sms.pruneCutoff(12, NOW).startsWith('2026-01-20'), sms.pruneCutoff(12, NOW));
+
+  const pruned = sms.prune({ months: 12, now: NOW });
+  ok('pruning reports what it removed', pruned.deleted === 3, pruned);
+
+  const alive = (id) => !!sms.get(id);
+  ok('a message from four years ago is gone', !alive(ancient));
+  ok('an old failed message is gone', !alive(oldFailed));
+  ok('the month just outside the window is gone', !alive(justOutside));
+  ok('a message inside the window is kept', alive(justInside));
+  ok('a recent message is kept', alive(recent));
+
+  // The guard that matters: an unfinished message is never deleted, however
+  // old, because deleting it would mean the customer silently never gets it.
+  ok('an old but still queued message survives', alive(stillQueued));
+  ok('an old but still retrying message survives', alive(stillRetrying));
+
+  ok('pruning again changes nothing', sms.prune({ months: 12, now: NOW }).deleted === 0);
+
+  // Once it finishes, it becomes eligible on the next pass.
+  db.prepare("UPDATE sms_log SET status = 'dead' WHERE id = ?").run(stillQueued);
+  ok('it becomes prunable once it has finished',
+    sms.prune({ months: 12, now: NOW }).deleted === 1);
+  ok('and is then really gone', !alive(stillQueued));
+
+  // Cleaned up so the counts below are not thrown off.
+  db.prepare('DELETE FROM sms_log WHERE id IN (?, ?, ?, ?)')
+    .run(justInside, recent, stillRetrying, oldFailed);
+
   section('the log screen queries');
 
   ok('the log lists rows newest first', sms.list({ limit: 5 }).length > 0);

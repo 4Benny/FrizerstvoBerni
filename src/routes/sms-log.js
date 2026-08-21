@@ -56,6 +56,7 @@ router.get('/', (req, res) => {
     smsEnabled: settings.get('sms_enabled') === '1',
     reminderEnabled: settings.get('sms_reminder_enabled') === '1',
     maxAttempts: sms.MAX_ATTEMPTS,
+    historyMonths: sms.HISTORY_MONTHS,
   });
 });
 
