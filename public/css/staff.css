@@ -1200,3 +1200,96 @@ button:focus-visible, a:focus-visible {
   .topbar { flex-wrap: wrap; }
   .mainnav { order: 3; width: 100%; }
 }
+
+/* ------------------------------------------------------------- SMS dnevnik */
+
+.stat-row {
+  display: flex;
+  gap: .75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.stat {
+  flex: 1 1 8rem;
+  padding: .75rem 1rem;
+  background: #fff;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+}
+.stat-value { display: block; font-size: 1.5rem; font-weight: 700; }
+.stat-label { font-size: .8rem; color: var(--ink-soft); }
+.stat-warn { border-color: var(--warn); background: var(--warn-soft); }
+.stat-warn .stat-value { color: var(--warn); }
+
+.filterbar {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+  margin-bottom: .6rem;
+}
+
+.chip {
+  padding: .3rem .75rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: #fff;
+  font-size: .85rem;
+  text-decoration: none;
+  color: var(--ink-soft);
+}
+.chip:hover { border-color: var(--brand); }
+.chip.is-active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+/* One label per outbox status. Only 'delivered' is green: 'accepted' means the
+   gateway took the message, which is not proof it arrived. */
+.pill {
+  display: inline-block;
+  padding: .15rem .5rem;
+  border-radius: 999px;
+  font-size: .78rem;
+  white-space: nowrap;
+  background: var(--line-soft);
+  color: var(--ink-soft);
+}
+.pill-delivered   { background: var(--ok-soft);     color: var(--ok); }
+.pill-accepted    { background: var(--brand-soft);  color: var(--brand-dark); }
+.pill-queued,
+.pill-sending,
+.pill-retry       { background: var(--warn-soft);   color: var(--warn); }
+.pill-dead,
+.pill-undelivered { background: var(--danger-soft); color: var(--danger); }
+
+tr.is-problem { background: #fffaf9; }
+
+.sms-body {
+  max-width: 26rem;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+.sms-error {
+  margin-top: .2rem;
+  max-width: 16rem;
+  font-size: .75rem;
+  color: var(--danger);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nowrap { white-space: nowrap; }
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-top: 1rem;
+}
+.pager-page { font-size: .85rem; color: var(--ink-soft); }
+
+.field-narrow { max-width: 16rem; }

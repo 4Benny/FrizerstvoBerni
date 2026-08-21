@@ -189,13 +189,31 @@
       <input type="checkbox" name="sms_enabled" value="1" <%= values.sms_enabled === '1' ? 'checked' : '' %>>
       Pošlji SMS ob naročilu, prestavitvi in odpovedi
     </label>
+    <label class="check">
+      <input type="checkbox" name="sms_reminder_enabled" value="1"
+             <%= values.sms_reminder_enabled === '1' ? 'checked' : '' %>>
+      Pošlji opomnik pred terminom
+    </label>
+    <div class="field field-narrow">
+      <label for="sms_reminder_hours_before">Opomnik koliko ur pred terminom</label>
+      <input id="sms_reminder_hours_before" name="sms_reminder_hours_before"
+             type="number" min="1" max="168" step="1"
+             value="<%= values.sms_reminder_hours_before %>">
+      <p class="hint">
+        Vsaka stranka prejme največ en opomnik na termin. Če je bil termin
+        naročen znotraj tega okna, opomnika ne pošljemo — stranka je pravkar
+        prejela potrditev.
+      </p>
+    </div>
+
     <p class="hint">
       Aktivni prehod: <strong><%= smsDriver %></strong>.
       <% if (smsDriver === 'log') { %>
         Sporočila se zapišejo v dnevnik strežnika in shranijo v sistem, da lahko salon
         preveri celoten potek. Za pošiljanje pravih sporočil nastavite
-        <code>SMS_DRIVER=twilio</code> in okoljske spremenljivke za Twilio.
+        <code>SMS_DRIVER</code> in okoljske spremenljivke ponudnika.
       <% } %>
+      Potek pošiljanja je viden v <a href="/app/sms">SMS dnevniku</a>.
     </p>
   </section>
 

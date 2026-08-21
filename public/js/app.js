@@ -582,7 +582,7 @@
       var message = data.message || 'Termin je shranjen.';
       if (data.sms) {
         if (data.sms.status === 'failed') message += ' SMS ni bilo mogoče poslati.';
-        else if (data.sms.status === 'sent') message += ' SMS je poslan.';
+        else if (data.sms.status === 'queued') message += ' SMS je v vrsti za pošiljanje.';
         else if (data.sms.status === 'no_phone') message += ' Stranka nima telefonske številke, SMS ni bil poslan.';
       }
       toastAfterReload(message, data.sms && data.sms.status === 'failed' ? 'warn' : null);
@@ -869,7 +869,7 @@
         kind: smsBtn.dataset.kind,
       }).then(function (data) {
         busy(smsBtn, false);
-        toast(data.ok ? 'SMS je poslan.' : data.error || 'SMS ni bilo mogoče poslati.',
+        toast(data.ok ? 'SMS je v vrsti za pošiljanje.' : data.error || 'SMS ni bilo mogoče poslati.',
           data.ok ? null : 'error');
       });
       return;
@@ -889,7 +889,7 @@
         }
         var msg = data.message || 'Termin je prestavljen.';
         if (data.sms && data.sms.status === 'failed') msg += ' SMS ni bilo mogoče poslati.';
-        if (data.sms && data.sms.status === 'sent') msg += ' SMS je poslan.';
+        if (data.sms && data.sms.status === 'queued') msg += ' SMS je v vrsti za pošiljanje.';
         toastAfterReload(msg);
         reload();
       });
@@ -1045,7 +1045,7 @@
         }
         var msg = data.message;
         if (data.sms && data.sms.status === 'failed') msg += ' SMS ni bilo mogoče poslati.';
-        if (data.sms && data.sms.status === 'sent') msg += ' SMS je poslan.';
+        if (data.sms && data.sms.status === 'queued') msg += ' SMS je v vrsti za pošiljanje.';
         if (data.sms && data.sms.status === 'no_phone') {
           msg += ' Stranka nima telefonske številke, SMS ni bil poslan.';
         }
@@ -1071,7 +1071,7 @@
         }
         var msg = data.message;
         if (data.sms && data.sms.status === 'failed') msg += ' SMS ni bilo mogoče poslati.';
-        if (data.sms && data.sms.status === 'sent') msg += ' SMS je poslan.';
+        if (data.sms && data.sms.status === 'queued') msg += ' SMS je v vrsti za pošiljanje.';
         if (data.sms && data.sms.status === 'no_phone') {
           msg += ' Stranka nima telefonske številke, SMS ni bil poslan.';
         }

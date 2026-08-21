@@ -14,6 +14,7 @@
 set -euo pipefail
 
 REPO="${REPO:-https://github.com/4Benny/FrizerstvoBerni.git}"
+TIMEZONE="${TIMEZONE:-Europe/Ljubljana}"
 BRANCH="${BRANCH:-main}"
 APP_DIR="/opt/salon/app"
 DATA_DIR="/opt/salon/data"
@@ -61,6 +62,15 @@ info "node $(node -v), npm $(npm -v)"
 node -e 'require("node:sqlite")' 2>/dev/null \
   || { echo "Ta Node ne podpira node:sqlite. Potrebna je različica 22.5 ali novejša." >&2; exit 1; }
 
+# ------------------------------------------------------------------- ura --
+
+# Termini so shranjeni v lokalnem času salona, opomniki pa jih primerjajo z uro
+# strežnika. Če se ne ujemata, gredo opomniki ob napačnem času.
+say "Nastavljam časovni pas na ${TIMEZONE}"
+timedatectl set-timezone "$TIMEZONE" 2>/dev/null \
+  || warn "Časovnega pasu ni bilo mogoče nastaviti — preverite z: timedatectl"
+info "$(date)"
+
 # ----------------------------------------------------------------- uporabnik --
 
 say "Pripravljam sistemskega uporabnika in mape"
@@ -105,13 +115,29 @@ ADMIN_PASSWORD=${ADMIN_PW}
 # SMS: privzeto se sporočila samo zapišejo v dnevnik in na telefon ne gre nič.
 # Za pravo pošiljanje glejte SETUP.md in nastavite spodnje vrstice.
 SMS_DRIVER=log
+#
+# Prehod prek ponudnika (A2P) — pošiljanje ne odvisi od nobenega telefona:
 #SMS_DRIVER=http
-#SMS_HTTP_URL=http://192.168.1.50:8080/message
+#SMS_HTTP_URL=https://api.ponudnik.si/sms/send
 #SMS_HTTP_FORMAT=json
-#SMS_HTTP_BODY={"phoneNumbers":["{{to}}"],"message":"{{text}}"}
-#SMS_HTTP_USER=sms
-#SMS_HTTP_PASS=
+#SMS_HTTP_BODY={"to":"{{to}}","text":"{{text}}","from":"{{from}}"}
+#SMS_HTTP_HEADERS={"Authorization":"Bearer ZETON"}
+#SMS_HTTP_ID_PATH=messageId
 #SMS_SENDER=Berni
+#
+# Prehod na telefonu s SIM kartico salona, oblačni način (telefon je lahko
+# kjerkoli, dokler ima mobilne podatke):
+#SMS_DRIVER=http
+#SMS_HTTP_URL=https://api.httpsms.com/v1/messages/send
+#SMS_HTTP_FORMAT=json
+#SMS_HTTP_BODY={"from":"+38631331636","to":"{{to}}","content":"{{text}}"}
+#SMS_HTTP_HEADERS={"x-api-key":"KLJUC"}
+#SMS_HTTP_ID_PATH=data.id
+#
+# Poročila o dostavi: nastavite dolgo naključno vrednost (openssl rand -hex 24)
+# in ponudniku dajte URL https://domena/sms/dlr/<vrednost>. Brez tega je
+# najboljše, kar aplikacija ve, "oddano prehodu".
+#SMS_DLR_SECRET=
 EOF
 
   chown root:salon "$ENV_FILE"

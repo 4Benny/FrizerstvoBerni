@@ -30,6 +30,9 @@ const server = spawn(process.execPath, [path.join(APP_DIR, 'server.js')], {
     PORT,
     SALON_DB: DB,
     SMS_DRIVER: 'log',
+    // Drive the outbox worker fast so the suite can watch a message go out.
+    SMS_TICK_MS: '300',
+    SMS_REMINDER_TICK_MS: '10000',
     SESSION_SECRET: 'test-secret',
     ADMIN_PASSWORD: 'admin123',
   },

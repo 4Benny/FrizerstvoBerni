@@ -63,6 +63,18 @@ router.post('/', (req, res) => {
     return rerender('Število plačanih striženj do brezplačnega mora biti 1 ali več.');
   }
 
+  // A week is the sensible ceiling: a reminder further out is not a reminder.
+  // A form that omits the field keeps whatever is already stored, so this stays
+  // optional for anything posting a subset of the settings.
+  const rawReminderHours =
+    body.sms_reminder_hours_before === undefined || body.sms_reminder_hours_before === ''
+      ? settings.get('sms_reminder_hours_before')
+      : body.sms_reminder_hours_before;
+  const reminderHours = Math.round(Number(rawReminderHours));
+  if (!Number.isFinite(reminderHours) || reminderHours < 1 || reminderHours > 168) {
+    return rerender('Opomnik mora biti med 1 in 168 urami pred terminom.');
+  }
+
   // Opening hours arrive as day-indexed fields: mode_1, open_1, close_1, text_1 …
   const hours = {};
   for (const key of settings.DAY_KEYS) {
@@ -102,6 +114,8 @@ router.post('/', (req, res) => {
     calendar_end: util.formatTime(end),
     paid_before_free: Math.round(paidBeforeFree),
     sms_enabled: util.boolInt(body.sms_enabled),
+    sms_reminder_enabled: util.boolInt(body.sms_reminder_enabled),
+    sms_reminder_hours_before: reminderHours,
     opening_hours: JSON.stringify(hours),
   });
 

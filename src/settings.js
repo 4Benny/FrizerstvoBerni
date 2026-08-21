@@ -36,6 +36,10 @@ const DEFAULTS = {
   calendar_end: '20:00',
   paid_before_free: '9',
   sms_enabled: '0',
+  // Reminder before the appointment. Off by default on purpose: switching it on
+  // starts billing one more message per appointment, so the salon decides when.
+  sms_reminder_enabled: '0',
+  sms_reminder_hours_before: '24',
 };
 
 const DAY_KEYS = ['1', '2', '3', '4', '5', '6', '0'];

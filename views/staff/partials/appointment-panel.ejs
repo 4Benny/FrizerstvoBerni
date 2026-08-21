@@ -60,11 +60,25 @@
     </div>
   <% } %>
 
-  <% if (lastSms && lastSms.status === 'failed') { %>
+  <% if (lastSms && ['dead', 'undelivered'].includes(lastSms.status)) { %>
     <div class="panel-notes warn">
-      <p>Zadnjega SMS sporočila ni bilo mogoče poslati.</p>
+      <p>
+        <% if (lastSms.status === 'undelivered') { %>
+          Zadnje SMS sporočilo ni bilo dostavljeno stranki.
+        <% } else { %>
+          Zadnjega SMS sporočila ni bilo mogoče poslati<% if (lastSms.attempts) { %>
+          (poskusov: <%= lastSms.attempts %>)<% } %>.
+        <% } %>
+      </p>
       <button type="button" class="btn btn-quiet btn-sm"
               data-retry-sms="<%= appt.id %>" data-kind="<%= lastSms.kind %>">Poskusi znova</button>
+    </div>
+  <% } else if (lastSms && ['queued', 'sending', 'retry'].includes(lastSms.status)) { %>
+    <div class="panel-notes">
+      <p>
+        SMS je v vrsti za pošiljanje<% if (lastSms.status === 'retry') { %>
+        — prvi poskus ni uspel, sistem poskuša znova<% } %>.
+      </p>
     </div>
   <% } %>
 

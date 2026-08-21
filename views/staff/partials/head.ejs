@@ -27,6 +27,7 @@
     <a href="/app/products" class="<%= path.startsWith('/app/products') ? 'active' : '' %>">Izdelki</a>
     <% if (user && user.isAdmin) { %>
       <a href="/app/employees" class="<%= path.startsWith('/app/employees') ? 'active' : '' %>">Zaposleni</a>
+      <a href="/app/sms" class="<%= path.startsWith('/app/sms') ? 'active' : '' %>">SMS</a>
       <a href="/app/settings" class="<%= path.startsWith('/app/settings') ? 'active' : '' %>">Nastavitve</a>
     <% } %>
   </nav>

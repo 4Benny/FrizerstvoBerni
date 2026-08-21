@@ -211,7 +211,10 @@ PORT=3000
 SESSION_SECRET=paste-the-openssl-output-here
 SALON_DB=/opt/salon/data/salon.db
 ADMIN_PASSWORD=choose-a-strong-password
+
+# SMS. Leave as log until a provider is chosen — see section 7.
 SMS_DRIVER=log
+#SMS_DLR_SECRET=long-random-value-for-delivery-receipts
 ```
 
 ```bash
@@ -368,9 +371,31 @@ If the account was deactivated, this reactivates it.
 
 ## 7. Setting up SMS
 
-The app sends an SMS the moment an appointment is saved, and again on
-rescheduling and on cancellation when the box is ticked. **Two conditions must
-both be met:**
+Everything below is configuration. No code changes are needed to send SMS — pick
+a provider, set the variables, tick the box.
+
+### How sending works
+
+Saving an appointment **never waits for the gateway**. The message goes into an
+outbox in the database and a background worker delivers it a moment later. That
+means a slow or broken provider cannot hold up the front desk, and a message
+that fails is retried automatically instead of being lost.
+
+One message moves through these states, all visible in **SMS dnevnik**:
+
+| State | Meaning |
+|---|---|
+| `V vrsti` | queued, the worker will pick it up within seconds |
+| `Oddano prehodu` | the gateway accepted it — **not** proof it arrived |
+| `Dostavljeno` | a delivery receipt confirmed it reached the handset |
+| `Ni dostavljeno` | the gateway reported it did not arrive |
+| `Čaka na ponovni poskus` | an attempt failed; it will try again |
+| `Neuspešno` | gave up after all attempts |
+
+Retries back off at 1, 5, 15, 60 and 180 minutes, five attempts by default. A
+gateway that is briefly unreachable therefore costs nothing.
+
+**Two conditions must both be met before anything is sent:**
 
 1. In Nastavitve, *Pošlji SMS ob naročilu, prestavitvi in odpovedi* is ticked.
 2. `SMS_DRIVER` points at a real gateway. The default `log` only writes the
@@ -379,6 +404,35 @@ both be met:**
 Phone numbers are converted automatically before sending, so `031 331 636`
 reaches the gateway as `+38631331636`.
 
+### Reminders before the appointment
+
+Nastavitve also has *Pošlji opomnik pred terminom* with a lead time in hours
+(24 by default). It is **off by default**, because switching it on adds a paid
+message per appointment.
+
+Rules the reminder follows:
+
+- each appointment is reminded **at most once**, safe across restarts;
+- an appointment booked *inside* the window gets no reminder, because the
+  confirmation it just received already did that job;
+- cancelled appointments are skipped.
+
+Reminders compare the appointment time against the server clock, so **the server
+timezone must be the salon's timezone**:
+
+```bash
+sudo timedatectl set-timezone Europe/Ljubljana
+timedatectl                       # check: Time zone: Europe/Ljubljana
+```
+
+### The SMS log
+
+**SMS dnevnik** in the top navigation (administrators only) shows every message,
+filterable by state and by kind, with the gateway's own error text when
+something failed and a **Pošlji znova** button that puts a failed message back
+in the queue with a fresh set of attempts. Use this screen rather than the
+command line for day-to-day checking.
+
 ### About the sender number
 
 **031 331 636 is your own mobile number, and a commercial gateway cannot simply
@@ -386,19 +440,26 @@ claim it as the sender.** Providers only let you send from a number bought
 through them, or from a text sender name. Slovenia allows text sender names
 without pre-registration, so customers can see `Berni` instead of a number.
 
-If you want messages to genuinely come from 031 331 636, use option A.
+If messages must genuinely come from 031 331 636, use option A — but read the
+warning about which mode to run it in.
 
 ### Option A — a phone with the salon SIM
 
-Install an SMS-gateway app on an Android phone holding your SIM and leave it in
-the salon on Wi-Fi. Options:
-[SMS Gateway for Android](https://github.com/capcom6/android-sms-gateway),
+Install an SMS-gateway app on an Android phone holding your SIM. Options:
+[httpSMS](https://docs.httpsms.com/),
 [textbee](https://github.com/textbee/textbee),
-[httpSMS](https://docs.httpsms.com/).
+[SMS Gateway for Android](https://github.com/capcom6/android-sms-gateway).
 
-Messages really come from your number, customers can reply to it, and there is
-no per-message cost beyond your existing plan. The phone has to stay on and
-reachable from the server.
+These apps run in one of two modes, and **the mode decides whether sending works
+when the phone is away from the salon:**
+
+- **Local mode** — the server calls the phone over the salon network
+  (`http://192.168.1.50:8080/…`). The phone must be on salon Wi-Fi. If it leaves,
+  sending silently stops.
+- **Cloud mode** — the phone connects out to the provider's relay and the server
+  calls the relay. The phone works anywhere it has mobile data.
+
+Local mode:
 
 ```
 SMS_DRIVER=http
@@ -409,15 +470,26 @@ SMS_HTTP_USER=sms
 SMS_HTTP_PASS=the-password-from-the-app
 ```
 
-Give the phone a fixed IP in your router so the address does not change. Note
-that a server in a data centre cannot reach a phone on the salon's home
-network — for this option the app usually runs on a computer in the salon, or
-the phone uses a gateway app with a cloud relay.
+Cloud mode, with httpSMS:
 
-### Option B — a Slovenian SMS provider
+```
+SMS_DRIVER=http
+SMS_HTTP_URL=https://api.httpsms.com/v1/messages/send
+SMS_HTTP_FORMAT=json
+SMS_HTTP_BODY={"from":"+38631331636","to":"{{to}}","content":"{{text}}"}
+SMS_HTTP_HEADERS={"x-api-key":"YOUR_KEY"}
+SMS_HTTP_ID_PATH=data.id
+```
 
-Telekom Slovenije, A1, Infobip and others. Most reliable, sender shows as
-`Berni`, customers cannot reply, billed per message.
+Messages really come from your number, customers can reply to it, and there is
+no per-message cost beyond your existing plan. Either way the phone has to stay
+on and charged — that is this option's weak point.
+
+### Option B — an A2P provider
+
+The server calls the provider's API and they send. No phone is involved at all,
+so sending keeps working whatever happens to your handset. Customers see the
+sender name and cannot reply.
 
 ```
 SMS_DRIVER=http
@@ -425,14 +497,17 @@ SMS_HTTP_URL=https://api.provider.si/sms/send
 SMS_HTTP_FORMAT=json
 SMS_HTTP_BODY={"to":"{{to}}","text":"{{text}}","from":"{{from}}"}
 SMS_HTTP_HEADERS={"Authorization":"Bearer YOUR_TOKEN"}
+SMS_HTTP_ID_PATH=messageId
 SMS_SENDER=Berni
 ```
 
 Body shapes differ between providers — match `SMS_HTTP_BODY` to their
-documentation using the placeholders `{{to}}`, `{{text}}` and `{{from}}`. Values
-are escaped correctly even if a customer's name contains a quote. For providers
-wanting form encoding, set `SMS_HTTP_FORMAT=form` and a body like
-`recipient={{to}}&body={{text}}`.
+documentation. Three placeholders are available: `{{to}}`, `{{text}}`,
+`{{from}}`. A separator inside the message is safe: a service name like
+`Barvanje & striženje` is escaped correctly in both formats.
+
+For a provider wanting form encoding, set `SMS_HTTP_FORMAT=form` and a body like
+`to={{to}}&text={{text}}&sender={{from}}`.
 
 ### Option C — Twilio
 
@@ -443,23 +518,73 @@ TWILIO_AUTH_TOKEN=xxxxxxxx
 TWILIO_FROM=+386XXXXXXXX
 ```
 
+### Delivery receipts — knowing a message actually arrived
+
+Without this, the best the app can say is *Oddano prehodu*: the gateway took the
+message. To see *Dostavljeno*, let the provider report back.
+
+Set a long random secret and give the provider the matching URL:
+
+```bash
+openssl rand -hex 24              # use the output below
+```
+
+```
+SMS_DLR_SECRET=paste-the-random-output-here
+```
+
+The provider's callback URL is then:
+
+```
+https://your-domain/sms/dlr/paste-the-random-output-here
+```
+
+For Twilio, point `TWILIO_STATUS_CALLBACK` at that same URL and nothing else is
+needed — its field names are the defaults. For anyone else, tell the app which
+fields to read:
+
+```
+SMS_HTTP_ID_PATH=messageId                    # where the id is in the send response
+SMS_DLR_ID_FIELD=messageId                    # where the id is in the receipt
+SMS_DLR_STATUS_FIELD=status
+SMS_DLR_DELIVERED=delivered,DELIVRD
+SMS_DLR_FAILED=undelivered,failed,rejected,expired
+```
+
+Both `SMS_HTTP_ID_PATH` and `SMS_DLR_ID_FIELD` are needed: the first stores the
+gateway's id when sending, the second finds it again in the receipt. Without the
+secret set, the endpoint returns 404 and everything else still works — you just
+never see *Dostavljeno*.
+
+### Optional tuning
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `SMS_MAX_ATTEMPTS` | `5` | attempts before giving up |
+| `SMS_TICK_MS` | `15000` | how often the outbox is checked |
+| `SMS_BATCH` | `5` | messages sent per pass |
+| `SMS_REMINDER_TICK_MS` | `300000` | how often reminders are scanned |
+| `SMS_HTTP_TIMEOUT_MS` | `10000` | give up on a silent gateway |
+| `SMS_COUNTRY_CODE` | `386` | country for local numbers |
+
 ### Applying and testing
 
 ```bash
 sudo nano /etc/salon.env
 sudo systemctl restart salon        # required after any change here
-npm run test:sms                    # 36 checks, no provider needed
+npm test                            # 397 checks, no provider needed
 ```
 
 Then tick the box in Nastavitve and book one appointment for a customer whose
-number is your own.
+number is your own. Watch it move from *V vrsti* to *Oddano prehodu* in **SMS
+dnevnik**.
 
-If sending fails, the appointment is still saved — the app shows *„SMS ni bilo
-mogoče poslati.“* with a **Poskusi znova** button. The reason is recorded:
+If sending fails the appointment is still saved, the app retries on its own, and
+the gateway's reason is shown in the log. The same data from the command line:
 
 ```bash
 sudo -u salon sqlite3 /opt/salon/data/salon.db \
-  "SELECT created_at, status, phone, error FROM sms_log ORDER BY id DESC LIMIT 5;"
+  "SELECT created_at, status, attempts, phone, error FROM sms_log ORDER BY id DESC LIMIT 5;"
 ```
 
 ---
@@ -571,8 +696,22 @@ security token expired. Reload and try again.
 the browser is still using cached files. `sudo systemctl restart salon`, then
 reload with Ctrl+F5.
 
-**SMS says sent but no message arrives** — `SMS_DRIVER` is still `log`. Check
-with `grep SMS_DRIVER /etc/salon.env`.
+**SMS says queued but no message arrives** — `SMS_DRIVER` is still `log`. Check
+with `grep SMS_DRIVER /etc/salon.env`. Open **SMS dnevnik**: if the message sits
+at *Čaka na ponovni poskus*, the error column holds the gateway's own reason.
+
+**Messages stay at "V vrsti" and never move** — the worker starts with the app,
+so this means the service is not running the current code. `sudo systemctl
+restart salon`, then check `journalctl -u salon -n 30` for the `[SMS] gonilnik:`
+line printed at startup.
+
+**Everything says "Oddano prehodu", never "Dostavljeno"** — delivery receipts
+are not configured. That is only reporting: the messages are being sent. See
+*Delivery receipts* in section 7 to enable it.
+
+**Reminders never go out** — check all four: the box is ticked in Nastavitve,
+`SMS_DRIVER` is not `log`, the appointment was booked before the reminder window
+opened, and the server timezone is Europe/Ljubljana (`timedatectl`).
 
 **Calendar starts at an odd hour** — an appointment exists outside opening
 hours, and the grid deliberately widens so it is never hidden. Not a fault.
@@ -595,6 +734,15 @@ cd /opt/salon/app && npm test        # 321 checks, uses a throwaway database
 - [ ] `NODE_ENV=production` and the site is served over HTTPS
 - [ ] `/etc/salon.env` is mode 640, not world-readable
 - [ ] SMS confirmed with one real appointment to a number you control
+- [ ] the server timezone is Europe/Ljubljana (`timedatectl`) — reminders
+      depend on it
+- [ ] you have decided whether reminders before the appointment are on, and
+      accepted the extra message per appointment
+- [ ] `SMS_DLR_SECRET` is set if you want to see *Dostavljeno* rather than
+      only *Oddano prehodu*
+- [ ] the logo and emblem show on the public site — an upgraded database
+      keeps whatever was saved before, so set them once in Nastavitve if the
+      salon name still shows as plain text
 - [ ] a backup has run, and a copy exists somewhere other than this server
 - [ ] the seven services priced at €0 either have real prices or genuinely are
       "po dogovoru"

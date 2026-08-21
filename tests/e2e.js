@@ -591,19 +591,40 @@ function settingsForm(over = {}) {
   r = await req('/api/appointments', { method: 'POST', json: {
     customer_id: ana.id, service_id: SVC_WOMENS, employee_id: EMP_MAJA, date: '2026-08-27', start: '10:00',
   }});
-  ok('booking sends an SMS', r.data.sms.status === 'sent', JSON.stringify(r.data.sms));
+  ok('booking queues an SMS', r.data.sms.status === 'queued', JSON.stringify(r.data.sms));
   ok('appointment still saved alongside SMS', r.data.appointment.id > 0);
   const smsAppt = r.data.appointment.id;
   r = await req(`/api/appointments/${smsAppt}/reschedule`, { method: 'POST', json: { date: '2026-08-28', start: '11:30' } });
-  ok('reschedule sends an SMS', r.data.sms.status === 'sent');
+  ok('reschedule queues an SMS', r.data.sms.status === 'queued');
   r = await req(`/api/appointments/${smsAppt}/status`, { method: 'POST', json: { status: 'cancelled', send_sms: true } });
-  ok('cancellation sends an SMS when asked', r.data.sms.status === 'sent');
+  ok('cancellation queues an SMS when asked', r.data.sms.status === 'queued');
   r = await req('/api/appointments', { method: 'POST', json: {
     customer_id: ana.id, service_id: SVC_WOMENS, employee_id: EMP_MAJA, date: '2026-08-29', start: '10:00',
   }});
   const noSmsAppt = r.data.appointment.id;
   r = await req(`/api/appointments/${noSmsAppt}/status`, { method: 'POST', json: { status: 'cancelled' } });
   ok('cancellation without the box sends nothing', r.data.sms.status === 'skipped', JSON.stringify(r.data.sms));
+
+  section('SMS outbox and log screen');
+  // The worker runs in the app process on a fast tick under test, so a queued
+  // message should reach 'accepted' shortly after being enqueued.
+  let smsPage = '';
+  for (let i = 0; i < 40; i++) {
+    r = await req('/app/sms');
+    smsPage = r.text || '';
+    if (/Oddano prehodu/.test(smsPage)) break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  ok('SMS log screen loads for the admin', r.status === 200 && /SMS dnevnik/.test(smsPage),
+    'status ' + r.status);
+  ok('the background worker delivered a queued message', /Oddano prehodu/.test(smsPage));
+  ok('the log shows the message text', /Frizerstvo Berni:/.test(smsPage));
+  ok('the log shows what kind of message it was', /Naročilo/.test(smsPage));
+  r = await req('/app/sms?status=problem');
+  ok('the log filters by status', r.status === 200);
+  r = await req('/app/sms?kind=reminder');
+  ok('the log filters by kind', r.status === 200);
+  ok('an empty filter says so', /ni zapisov/.test(r.text || ''));
 
   r = await req('/api/customers', { method: 'POST', json: { first_name: 'Nophone', last_name: 'Tester' } });
   const nophone = r.data.customer;
@@ -836,9 +857,10 @@ function settingsForm(over = {}) {
   ok('employee sees the calendar', r.status === 200);
   ok('employee nav hides Settings', !r.text.includes('href="/app/settings"'));
   ok('employee nav hides Employees', !r.text.includes('href="/app/employees"'));
+  ok('employee nav hides the SMS log', !r.text.includes('href="/app/sms"'));
   ok('employee nav shows the four daily sections',
     ['/app/calendar', '/app/customers', '/app/services', '/app/products'].every((p) => r.text.includes(`href="${p}"`)));
-  for (const path of ['/app/settings', '/app/employees', '/app/employees/new', '/app/services/new']) {
+  for (const path of ['/app/settings', '/app/sms', '/app/employees', '/app/employees/new', '/app/services/new']) {
     r = await req(path);
     ok(`employee blocked from ${path}`, r.status === 403, `status ${r.status}`);
   }

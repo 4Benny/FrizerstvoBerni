@@ -197,7 +197,7 @@ router.post('/appointments', async (req, res, next) => {
 
     // Save first — the appointment must exist even if the SMS fails.
     const appt = appointments.create(built.data);
-    const result = await sms.notify('booked', built.customer, appt);
+    const result = sms.enqueue('booked', built.customer, appt);
 
     return res.json({
       ok: true,
@@ -284,7 +284,7 @@ router.post('/appointments/:id/reschedule', async (req, res, next) => {
 
     const moved = date !== existing.date || startMin !== existing.start_min;
     const result = moved
-      ? await sms.notify('rescheduled', customers.get(appt.customer_id), appt)
+      ? sms.enqueue('rescheduled', customers.get(appt.customer_id), appt)
       : { status: 'skipped', message: '' };
 
     return res.json({
@@ -342,7 +342,7 @@ router.post('/appointments/:id/status', async (req, res, next) => {
       status === 'cancelled' &&
       (req.body.send_sms === true || req.body.send_sms === 'on' || req.body.send_sms === '1');
     if (wantsSms) {
-      result = await sms.notify('cancelled', customers.get(appt.customer_id), appt);
+      result = sms.enqueue('cancelled', customers.get(appt.customer_id), appt);
     }
 
     return res.json({
@@ -363,9 +363,13 @@ router.post('/appointments/:id/sms', async (req, res, next) => {
     const kind = ['booked', 'rescheduled', 'cancelled'].includes(req.body.kind)
       ? req.body.kind
       : 'booked';
-    const result = await sms.notify(kind, customers.get(appt.customer_id), appt);
-    if (result.status === 'sent') {
-      return res.json({ ok: true, message: 'SMS je poslan.', sms: result });
+    const result = sms.enqueue(kind, customers.get(appt.customer_id), appt);
+    if (result.status === 'queued') {
+      return res.json({
+        ok: true,
+        message: 'SMS je v vrsti za pošiljanje.',
+        sms: result,
+      });
     }
     if (result.status === 'disabled') {
       return fail(res, 400, 'SMS obvestila so v nastavitvah izklopljena.');

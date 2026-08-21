@@ -7,6 +7,7 @@ const session = require('express-session');
 const SqliteStore = require('./src/session-store');
 const middleware = require('./src/middleware');
 const bootstrap = require('./src/bootstrap');
+const sms = require('./src/sms');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -22,6 +23,11 @@ app.disable('x-powered-by');
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 app.use(express.urlencoded({ extended: false, limit: '256kb' }));
 app.use(express.json({ limit: '256kb' }));
+
+// Delivery receipts arrive from the provider, not a browser: they carry no
+// session and no CSRF token, so this mounts ahead of both layers. A shared
+// secret in the path authenticates them.
+app.use('/', require('./src/routes/sms-webhook'));
 
 app.use(
   session({
@@ -52,6 +58,7 @@ app.use('/app/services', require('./src/routes/services'));
 app.use('/app/products', require('./src/routes/products'));
 app.use('/app/employees', require('./src/routes/employees'));
 app.use('/app/settings', require('./src/routes/settings'));
+app.use('/app/sms', require('./src/routes/sms-log'));
 app.use('/api', require('./src/routes/api'));
 
 app.use((req, res) => {
@@ -80,4 +87,6 @@ app.listen(PORT, () => {
   console.log(`Salon app running on http://localhost:${PORT}`);
   console.log(`  Public website : http://localhost:${PORT}/`);
   console.log(`  Staff login    : http://localhost:${PORT}/login`);
+  // Deliver queued messages in the background from here on.
+  sms.startWorker();
 });

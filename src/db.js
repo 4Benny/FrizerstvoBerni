@@ -90,16 +90,28 @@ CREATE INDEX IF NOT EXISTS idx_appt_date     ON appointments(date);
 CREATE INDEX IF NOT EXISTS idx_appt_emp_date ON appointments(employee_id, date);
 CREATE INDEX IF NOT EXISTS idx_appt_customer ON appointments(customer_id);
 
+-- The SMS outbox. Rows are created the moment an appointment is saved and a
+-- background worker delivers them, so the front desk never waits for a
+-- gateway. The status column tracks the whole life of one message:
+--   queued -> sending -> accepted -> delivered | undelivered
+--                     -> retry (waits for next_attempt_at) -> dead
+--   no_phone / disabled are terminal and only informational.
+-- "accepted" means the gateway took the message; only "delivered" means a
+-- delivery receipt confirmed it reached the handset.
 CREATE TABLE IF NOT EXISTS sms_log (
-  id             INTEGER PRIMARY KEY AUTOINCREMENT,
-  appointment_id INTEGER,
-  customer_id    INTEGER,
-  phone          TEXT NOT NULL DEFAULT '',
-  kind           TEXT NOT NULL,
-  body           TEXT NOT NULL,
-  status         TEXT NOT NULL,
-  error          TEXT NOT NULL DEFAULT '',
-  created_at     TEXT NOT NULL
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  appointment_id  INTEGER,
+  customer_id     INTEGER,
+  phone           TEXT NOT NULL DEFAULT '',
+  kind            TEXT NOT NULL,
+  body            TEXT NOT NULL,
+  status          TEXT NOT NULL,
+  error           TEXT NOT NULL DEFAULT '',
+  attempts        INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at TEXT NOT NULL DEFAULT '',
+  provider_id     TEXT NOT NULL DEFAULT '',
+  updated_at      TEXT NOT NULL DEFAULT '',
+  created_at      TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_sms_appt ON sms_log(appointment_id);
 
@@ -109,5 +121,38 @@ CREATE TABLE IF NOT EXISTS sessions (
   data    TEXT NOT NULL
 );
 `);
+
+/* ------------------------------------------------------------- migrations */
+
+/**
+ * Add a column to a table that predates it. SQLite has no "ADD COLUMN IF NOT
+ * EXISTS", so the current columns are read first. Existing rows take the
+ * default, which is why every added column has one.
+ */
+function addColumn(table, column, definition) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (columns.some((c) => c.name === column)) return;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+
+// Retry bookkeeping and delivery receipts arrived after the first release.
+// Databases created before that get the columns added in place.
+addColumn('sms_log', 'attempts', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('sms_log', 'next_attempt_at', "TEXT NOT NULL DEFAULT ''");
+addColumn('sms_log', 'provider_id', "TEXT NOT NULL DEFAULT ''");
+addColumn('sms_log', 'updated_at', "TEXT NOT NULL DEFAULT ''");
+
+db.exec(`
+CREATE INDEX IF NOT EXISTS idx_sms_due       ON sms_log(status, next_attempt_at);
+CREATE INDEX IF NOT EXISTS idx_sms_provider  ON sms_log(provider_id);
+CREATE INDEX IF NOT EXISTS idx_sms_appt_kind ON sms_log(appointment_id, kind);
+`);
+
+// Rename the two statuses the old single-attempt sender used, so the log screen
+// and the delivery-receipt matching only ever deal with one vocabulary.
+// 'sent' meant the gateway accepted it; 'failed' meant one attempt and no
+// retry, which is exactly what 'dead' means now.
+db.exec("UPDATE sms_log SET status = 'accepted' WHERE status = 'sent'");
+db.exec("UPDATE sms_log SET status = 'dead' WHERE status = 'failed'");
 
 module.exports = { db, DB_FILE };

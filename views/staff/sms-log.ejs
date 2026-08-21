@@ -1,0 +1,114 @@
+<%- include('partials/head') %>
+
+<div class="page-head">
+  <h1>SMS dnevnik</h1>
+  <div class="page-actions">
+    <a class="btn btn-quiet" href="/app/settings">Nastavitve SMS</a>
+  </div>
+</div>
+
+<p class="hint">
+  Aktivni prehod: <strong><%= smsDriver %></strong>.
+  <% if (smsDriver === 'log') { %>
+    Sporočila se samo zapišejo v dnevnik strežnika — na telefon ne pride nič.
+  <% } %>
+  <% if (!smsEnabled) { %>
+    Pošiljanje je v nastavitvah izklopljeno.
+  <% } %>
+  <% if (!reminderEnabled) { %>
+    Opomniki pred terminom so izklopljeni.
+  <% } %>
+</p>
+
+<div class="stat-row">
+  <div class="stat">
+    <span class="stat-value"><%= counts.total %></span>
+    <span class="stat-label">vseh sporočil</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value"><%= counts.pending %></span>
+    <span class="stat-label">v obdelavi</span>
+  </div>
+  <div class="stat <%= counts.problem ? 'stat-warn' : '' %>">
+    <span class="stat-value"><%= counts.problem %></span>
+    <span class="stat-label">težav</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value"><%= counts.delivered || 0 %></span>
+    <span class="stat-label">dostavljenih</span>
+  </div>
+</div>
+
+<div class="filterbar">
+  <% statusFilters.forEach(function (f) { %>
+    <a class="chip <%= status === f.value ? 'is-active' : '' %>"
+       href="/app/sms?status=<%= encodeURIComponent(f.value) %><%= kind ? '&kind=' + encodeURIComponent(kind) : '' %>"><%= f.label %></a>
+  <% }); %>
+</div>
+
+<div class="filterbar">
+  <% kindFilters.forEach(function (f) { %>
+    <a class="chip <%= kind === f.value ? 'is-active' : '' %>"
+       href="/app/sms?kind=<%= encodeURIComponent(f.value) %><%= status ? '&status=' + encodeURIComponent(status) : '' %>"><%= f.label %></a>
+  <% }); %>
+</div>
+
+<% if (!rows.length) { %>
+  <p class="empty">Za ta izbor ni zapisov.</p>
+<% } else { %>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Čas</th>
+          <th>Vrsta</th>
+          <th>Številka</th>
+          <th>Stanje</th>
+          <th>Poskusi</th>
+          <th>Sporočilo</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% rows.forEach(function (row) { %>
+          <tr class="<%= ['dead','undelivered','no_phone'].includes(row.status) ? 'is-problem' : '' %>">
+            <td class="nowrap"><%= String(row.created_at).replace('T', ' ').slice(0, 16) %></td>
+            <td><%= row.kind_label %></td>
+            <td class="nowrap"><%= row.phone || '—' %></td>
+            <td>
+              <span class="pill pill-<%= row.status %>"><%= row.status_label %></span>
+              <% if (row.error) { %>
+                <div class="sms-error" title="<%= row.error %>"><%= row.error %></div>
+              <% } %>
+            </td>
+            <td><%= row.attempts %><% if (row.attempts && row.status === 'retry') { %>/<%= maxAttempts %><% } %></td>
+            <td class="sms-body"><%= row.body || '—' %></td>
+            <td>
+              <% if (row.can_requeue) { %>
+                <form method="post" action="/app/sms/<%= row.id %>/requeue">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="status" value="<%= status %>">
+                  <input type="hidden" name="kind" value="<%= kind %>">
+                  <button type="submit" class="btn btn-quiet btn-sm">Pošlji znova</button>
+                </form>
+              <% } %>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pager">
+    <% var base = '/app/sms?' + (status ? 'status=' + encodeURIComponent(status) + '&' : '') + (kind ? 'kind=' + encodeURIComponent(kind) + '&' : ''); %>
+    <% if (page > 1) { %>
+      <a class="btn btn-quiet" href="<%= base %>page=<%= page - 1 %>">‹ Novejša</a>
+    <% } %>
+    <span class="pager-page">Stran <%= page %></span>
+    <% if (hasNext) { %>
+      <a class="btn btn-quiet" href="<%= base %>page=<%= page + 1 %>">Starejša ›</a>
+    <% } %>
+  </div>
+<% } %>
+
+<%- include('partials/foot') %>
