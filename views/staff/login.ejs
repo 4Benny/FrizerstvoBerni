@@ -4,37 +4,93 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#eb008b">
 <title>Prijava za zaposlene · <%= settings.salon_name %></title>
+<% if (settings.emblem_url) { %><link rel="icon" href="<%= settings.emblem_url %>"><% } %>
 <link rel="stylesheet" href="/css/staff.css?v=<%= assetVersion %>">
 </head>
-<body class="staff login-page">
-<main class="login-card">
-  <% if (settings.logo_url) { %>
-    <img class="login-logo" src="<%= settings.logo_url %>" alt="<%= settings.salon_name %>">
-  <% } else { %>
-    <h1><%= settings.salon_name %></h1>
-  <% } %>
-  <p class="login-sub">Prijava za zaposlene</p>
+<body class="staff auth-page">
 
-  <% if (error) { %>
-    <div class="flash flash-error" role="alert"><%= error %></div>
-  <% } %>
+<main class="auth">
+  <!-- Brand side. Decorative only, so it is hidden from assistive tech and
+       collapses to a slim header on a phone. -->
+  <aside class="auth-brand">
+    <div class="auth-brand-inner">
+      <% if (settings.emblem_url) { %>
+        <img class="auth-emblem" src="<%= settings.emblem_url %>" alt="">
+      <% } %>
+      <p class="auth-brand-name"><%= settings.salon_name %></p>
+      <% if (settings.slogan) { %>
+        <p class="auth-brand-slogan"><%= settings.slogan %></p>
+      <% } %>
+      <p class="auth-brand-note">Sistem za termine, stranke in izdelke</p>
+    </div>
+  </aside>
 
-  <form method="post" action="/login" autocomplete="on">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <input type="hidden" name="next" value="<%= next %>">
+  <section class="auth-panel">
+    <div class="auth-form-wrap">
+      <div class="auth-head">
+        <% if (settings.logo_url) { %>
+          <img class="auth-logo" src="<%= settings.logo_url %>" alt="<%= settings.salon_name %>">
+        <% } else { %>
+          <h1 class="auth-title"><%= settings.salon_name %></h1>
+        <% } %>
+        <p class="auth-sub">Prijava za zaposlene</p>
+      </div>
 
-    <label for="login">Uporabniško ime ali e-pošta</label>
-    <input id="login" name="login" type="text" value="<%= login %>" required autofocus
-           autocapitalize="none" autocomplete="username">
+      <% if (error) { %>
+        <div class="auth-error" role="alert">
+          <span aria-hidden="true">!</span>
+          <span><%= error %></span>
+        </div>
+      <% } %>
 
-    <label for="password">Geslo</label>
-    <input id="password" name="password" type="password" required autocomplete="current-password">
+      <form method="post" action="/login" autocomplete="on" novalidate>
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="next" value="<%= next %>">
 
-    <button type="submit" class="btn btn-primary btn-block">Prijava</button>
-  </form>
+        <div class="auth-field">
+          <label for="login">Uporabniško ime ali e-pošta</label>
+          <input id="login" name="login" type="text" value="<%= login %>" required autofocus
+                 autocapitalize="none" autocorrect="off" spellcheck="false"
+                 autocomplete="username" enterkeyhint="next">
+        </div>
 
-  <p class="login-back"><a href="/">← Nazaj na spletno stran</a></p>
+        <div class="auth-field">
+          <label for="password">Geslo</label>
+          <div class="auth-password">
+            <input id="password" name="password" type="password" required
+                   autocomplete="current-password" enterkeyhint="go">
+            <!-- Revealed by the script below, so there is no dead button
+                 when JavaScript is unavailable. -->
+            <button type="button" class="auth-reveal" data-reveal hidden
+                    aria-controls="password" aria-pressed="false">Pokaži</button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary auth-submit">Prijava</button>
+      </form>
+
+      <p class="auth-back"><a href="/">← Nazaj na spletno stran</a></p>
+    </div>
+  </section>
 </main>
+
+<script>
+  (function () {
+    var button = document.querySelector('[data-reveal]');
+    var field = document.getElementById('password');
+    if (!button || !field) return;
+    button.hidden = false;
+    button.addEventListener('click', function () {
+      var shown = field.type === 'text';
+      field.type = shown ? 'password' : 'text';
+      button.textContent = shown ? 'Pokaži' : 'Skrij';
+      button.setAttribute('aria-pressed', String(!shown));
+      field.focus();
+    });
+  })();
+</script>
+
 </body>
 </html>
