@@ -3,6 +3,7 @@
 const express = require('express');
 const products = require('../repo/products');
 const moves = require('../repo/product-moves');
+const productsPdf = require('../reports/products-pdf');
 const util = require('../util');
 const { requireLogin, setFlash } = require('../middleware');
 
@@ -40,7 +41,7 @@ router.get('/new', (req, res) => {
     title: 'Dodaj izdelek',
     product: null,
     error: null,
-    values: { name: '', description: '', quantity: 0, price: '', active: 1 },
+    values: { name: '', description: '', quantity: 0, price: '', cost: '', active: 1 },
   });
 });
 
@@ -50,6 +51,10 @@ function readForm(body) {
     description: util.str(body.description, 1000),
     quantity: Number(body.quantity),
     price_cents: util.parseMoney(body.price),
+    // Blank cost is 0, not invalid: the salon may not know it yet.
+    cost_cents: String(body.cost == null ? "" : body.cost).trim() === ""
+      ? 0
+      : util.parseMoney(body.cost),
     active: util.boolInt(body.active),
   };
 }
@@ -59,7 +64,8 @@ function validate(values) {
   if (!Number.isFinite(values.quantity) || values.quantity < 0) {
     return 'Količina mora biti 0 ali več.';
   }
-  if (values.price_cents === null) return 'Vpišite veljavno ceno.';
+  if (values.price_cents === null) return 'Vpišite veljavno prodajno ceno.';
+  if (values.cost_cents === null) return 'Nabavna cena ni v pravi obliki.';
   return null;
 }
 
@@ -71,12 +77,48 @@ router.post('/new', (req, res) => {
       title: 'Dodaj izdelek',
       product: null,
       error,
-      values: { ...values, price: req.body.price },
+      values: { ...values, price: req.body.price, cost: req.body.cost },
     });
   }
   const product = products.create(values);
   setFlash(req, 'success', 'Izdelek je shranjen.');
   res.redirect(`/app/products/${product.id}`);
+});
+
+/**
+ * Hand the browser a file to save. With ?inline=1 it is shown in the browser
+ * instead, so a worker can check the report before keeping it.
+ */
+function sendPdf(res, out, inline = false) {
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader(
+    'Content-Disposition',
+    `${inline ? 'inline' : 'attachment'}; filename="${out.filename}"`
+  );
+  res.setHeader('Content-Length', out.buffer.length);
+  // A report is a snapshot of a moving table; never let one be cached.
+  res.setHeader('Cache-Control', 'no-store');
+  return res.end(out.buffer);
+}
+
+/**
+ * The monthly figures as a PDF, so a worker can keep a copy before the
+ * retention window forgets the month. `month=all` exports everything kept.
+ *
+ * Declared before /:id, or "report.pdf" would be read as a product id.
+ */
+router.get('/report.pdf', (req, res) => {
+  const inline = req.query.inline === '1';
+  const wanted = String(req.query.month || '');
+  if (wanted === 'all') {
+    return sendPdf(res, productsPdf.allMonthsReport(), inline);
+  }
+  const available = moves.months();
+  const month =
+    /^\d{4}-\d{2}$/.test(wanted) && available.includes(wanted)
+      ? wanted
+      : available[0] || moves.monthKey();
+  return sendPdf(res, productsPdf.monthReport(month), inline);
 });
 
 /**
@@ -112,6 +154,12 @@ router.get('/:id', (req, res, next) => {
   });
 });
 
+router.get('/:id/history.pdf', (req, res, next) => {
+  const out = productsPdf.productReport(req.params.id);
+  if (!out) return next();
+  return sendPdf(res, out, req.query.inline === '1');
+});
+
 router.get('/:id/edit', (req, res, next) => {
   const product = products.get(req.params.id);
   if (!product) return next();
@@ -119,7 +167,11 @@ router.get('/:id/edit', (req, res, next) => {
     title: `Uredi ${product.name}`,
     product,
     error: null,
-    values: { ...product, price: (product.price_cents / 100).toFixed(2) },
+    values: {
+      ...product,
+      price: (product.price_cents / 100).toFixed(2),
+      cost: product.cost_cents ? (product.cost_cents / 100).toFixed(2) : '',
+    },
   });
 });
 
@@ -134,7 +186,7 @@ router.post('/:id/edit', (req, res, next) => {
       title: `Uredi ${product.name}`,
       product,
       error,
-      values: { ...values, price: req.body.price },
+      values: { ...values, price: req.body.price, cost: req.body.cost },
     });
   }
   products.update(product.id, values);

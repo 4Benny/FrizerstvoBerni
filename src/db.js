@@ -57,12 +57,16 @@ CREATE TABLE IF NOT EXISTS services (
   created_at   TEXT NOT NULL
 );
 
+-- price_cents is what the customer pays; cost_cents is what the salon pays the
+-- supplier. Both are the current figures — the per-month history lives in
+-- product_moves, which records the price each individual line went at.
 CREATE TABLE IF NOT EXISTS products (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   name        TEXT NOT NULL,
   description TEXT NOT NULL DEFAULT '',
   quantity    INTEGER NOT NULL DEFAULT 0,
   price_cents INTEGER NOT NULL DEFAULT 0,
+  cost_cents  INTEGER NOT NULL DEFAULT 0,
   active      INTEGER NOT NULL DEFAULT 1,
   created_at  TEXT NOT NULL
 );
@@ -163,6 +167,7 @@ function addColumn(table, column, definition) {
 
 // Retry bookkeeping and delivery receipts arrived after the first release.
 // Databases created before that get the columns added in place.
+addColumn('products', 'cost_cents', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('sms_log', 'attempts', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('sms_log', 'next_attempt_at', "TEXT NOT NULL DEFAULT ''");
 addColumn('sms_log', 'provider_id', "TEXT NOT NULL DEFAULT ''");

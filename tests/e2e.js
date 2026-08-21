@@ -47,7 +47,16 @@ async function req(path, { method = 'GET', json, form, headers = {} } = {}) {
   const text = await res.text();
   let data = null;
   try { data = JSON.parse(text); } catch { /* html response */ }
-  return { status: res.status, text, data, location: res.headers.get('location') };
+  // Headers are exposed so tests can check content types and downloads.
+  const responseHeaders = {};
+  res.headers.forEach((value, key) => { responseHeaders[key] = value; });
+  return {
+    status: res.status,
+    text,
+    data,
+    headers: responseHeaders,
+    location: res.headers.get('location'),
+  };
 }
 
 function grabCsrf(html) {
@@ -742,6 +751,39 @@ function settingsForm(over = {}) {
 
   // "report" must not be swallowed by the /:id route.
   ok('the report is not treated as a product id', !r.text.includes('Uredi izdelek'));
+
+  section('product PDF export');
+  r = await req('/app/products/report.pdf?month=' + encodeURIComponent('2026-08'));
+  // The month may not exist in the seed; either way a valid PDF must come back.
+  ok('month PDF responds', r.status === 200, 'status ' + r.status);
+  ok('month PDF is a PDF', (r.headers['content-type'] || '').includes('application/pdf'),
+    r.headers['content-type']);
+  ok('month PDF is sent as a download',
+    /attachment; filename=/.test(r.headers['content-disposition'] || ''),
+    r.headers['content-disposition']);
+  ok('month PDF starts with the PDF header', (r.text || '').startsWith('%PDF'),
+    (r.text || '').slice(0, 8));
+  ok('month PDF ends with EOF', /%%EOF\s*$/.test(r.text || ''));
+
+  r = await req('/app/products/report.pdf?month=all');
+  ok('all-months PDF responds', r.status === 200 && (r.text || '').startsWith('%PDF'));
+  ok('all-months PDF names the file accordingly',
+    /vsi-meseci/.test(r.headers['content-disposition'] || ''),
+    r.headers['content-disposition']);
+
+  r = await req('/app/products/report.pdf?month=nonsense');
+  ok('a bad month falls back to a valid PDF', r.status === 200 && (r.text || '').startsWith('%PDF'));
+
+  r = await req('/app/products/report.pdf?month=2026-08&inline=1');
+  ok('inline preview is not an attachment',
+    /^inline;/.test(r.headers['content-disposition'] || ''),
+    r.headers['content-disposition']);
+
+  r = await req('/app/products/1/history.pdf');
+  ok('per-product PDF responds', r.status === 200 && (r.text || '').startsWith('%PDF'),
+    'status ' + r.status);
+  r = await req('/app/products/99999/history.pdf');
+  ok('an unknown product yields 404, not a broken file', r.status === 404, 'status ' + r.status);
 
   /* --------------------------------------------------------------- customers */
 

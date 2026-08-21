@@ -33,9 +33,17 @@
              inputmode="numeric" value="<%= values.quantity || 0 %>">
     </div>
     <div class="field">
-      <label for="price">Cena (€) *</label>
+      <label for="price">Prodajna cena (€) *</label>
       <input id="price" name="price" type="text" required inputmode="decimal"
              placeholder="14,90" value="<%= values.price !== undefined ? values.price : '' %>">
+      <p class="hint">Kar plača stranka.</p>
+    </div>
+
+    <div class="field">
+      <label for="cost">Nabavna cena (€)</label>
+      <input id="cost" name="cost" type="text" inputmode="decimal"
+             placeholder="neobvezno" value="<%= values.cost !== undefined ? values.cost : '' %>">
+      <p class="hint">Kar salon plača dobavitelju. Uporabi se kot privzeta vrednost pri dobavi.</p>
     </div>
   </div>
 

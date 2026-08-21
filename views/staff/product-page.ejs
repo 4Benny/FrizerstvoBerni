@@ -5,6 +5,7 @@
 <div class="page-head">
   <h1><%= product.name %><% if (!product.active) { %> <span class="tag tag-muted">IZKLOPLJEN</span><% } %></h1>
   <div class="page-actions">
+    <a class="btn btn-quiet" href="/app/products/<%= product.id %>/history.pdf">PDF zgodovine</a>
     <a class="btn btn-quiet" href="/app/products/report">Mesečno poročilo</a>
     <a class="btn" href="/app/products/<%= product.id %>/edit">Uredi izdelek</a>
   </div>
@@ -31,6 +32,18 @@
     <h2>Podrobnosti</h2>
     <dl class="detail-list">
       <div><dt>Prodajna cena</dt><dd><%= util.formatMoney(product.price_cents) %></dd></div>
+      <div>
+        <dt>Nabavna cena</dt>
+        <dd><%= product.cost_cents ? util.formatMoney(product.cost_cents) : '—' %></dd>
+      </div>
+      <div>
+        <dt>Razlika na kos</dt>
+        <dd>
+          <% if (product.cost_cents) { %>
+            <%= util.formatMoney(product.price_cents - product.cost_cents) %>
+          <% } else { %>—<% } %>
+        </dd>
+      </div>
       <div><dt>Stanje</dt><dd><%= product.active ? 'Aktiven' : 'Izklopljen' %></dd></div>
     </dl>
     <h3>Opis</h3>
@@ -50,7 +63,9 @@
       </div>
       <div class="field">
         <label for="supply-price">Nabavna cena na kos</label>
-        <input id="supply-price" name="price" type="text" inputmode="decimal" placeholder="neobvezno">
+        <input id="supply-price" name="price" type="text" inputmode="decimal"
+               placeholder="neobvezno"
+               value="<%= product.cost_cents ? (product.cost_cents / 100).toFixed(2) : '' %>">
       </div>
       <div class="field">
         <label for="supply-note">Opomba</label>

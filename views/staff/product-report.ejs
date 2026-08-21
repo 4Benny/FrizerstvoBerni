@@ -4,6 +4,14 @@
 
 <div class="page-head">
   <h1>Mesečno poročilo izdelkov</h1>
+  <% if (months.length) { %>
+    <div class="page-actions">
+      <a class="btn" href="/app/products/report.pdf?month=<%= encodeURIComponent(month) %>">
+        PDF — <%= month %>
+      </a>
+      <a class="btn btn-quiet" href="/app/products/report.pdf?month=all">PDF — vsi meseci</a>
+    </div>
+  <% } %>
 </div>
 
 <% if (!months.length) { %>

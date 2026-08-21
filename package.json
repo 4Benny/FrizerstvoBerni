@@ -8,13 +8,14 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node tests/migration.js && node tests/products.js && node tests/sms.js && node tests/run.js",
+    "test": "node tests/migration.js && node tests/products.js && node tests/pdf.js && node tests/sms.js && node tests/run.js",
     "test:http": "node tests/run.js",
     "test:sms": "node tests/sms.js",
     "accounts": "node scripts/reset-password.js --list",
     "reset-password": "node scripts/reset-password.js",
     "test:migration": "node tests/migration.js",
-    "test:products": "node tests/products.js"
+    "test:products": "node tests/products.js",
+    "test:pdf": "node tests/pdf.js"
   },
   "engines": {
     "node": ">=22.5.0"
