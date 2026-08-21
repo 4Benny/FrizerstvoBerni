@@ -8,6 +8,7 @@ const SqliteStore = require('./src/session-store');
 const middleware = require('./src/middleware');
 const bootstrap = require('./src/bootstrap');
 const sms = require('./src/sms');
+const productMoves = require('./src/repo/product-moves');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -89,4 +90,6 @@ app.listen(PORT, () => {
   console.log(`  Staff login    : http://localhost:${PORT}/login`);
   // Deliver queued messages in the background from here on.
   sms.startWorker();
+  // Forget product history past the retention window, daily.
+  productMoves.startPruning();
 });

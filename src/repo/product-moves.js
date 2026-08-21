@@ -229,14 +229,84 @@ function monthTotals(month) {
   };
 }
 
+/* ------------------------------------------------------------- retention */
+
+/**
+ * How much history is kept. The salon wants recent prices, not an archive: a
+ * February from four years ago is of no use and only grows the database.
+ */
+const HISTORY_MONTHS = Math.max(
+  1,
+  Math.round(Number(process.env.PRODUCT_HISTORY_MONTHS) || 12)
+);
+
+/** The oldest month that is kept: the current month less `months`. */
+function cutoffMonth(months = HISTORY_MONTHS, now = new Date()) {
+  return monthKey(new Date(now.getFullYear(), now.getMonth() - months, 1));
+}
+
+/**
+ * Delete movements older than the retention window.
+ *
+ * Month keys are 'YYYY-MM', so a plain string comparison orders them correctly.
+ *
+ * This does **not** touch a product's stock count. `products.quantity` is the
+ * authoritative figure and is kept up to date as movements are recorded, so
+ * forgetting last year's history leaves today's zaloga exactly as it was. The
+ * consequence, deliberately accepted, is that stock can no longer be
+ * recalculated from the movement list — which was never how it was read.
+ */
+function prune({ months = HISTORY_MONTHS, now = new Date() } = {}) {
+  const cutoff = cutoffMonth(months, now);
+  const info = db.prepare('DELETE FROM product_moves WHERE month < ?').run(cutoff);
+  return { deleted: info.changes, cutoff };
+}
+
+let pruneTimer = null;
+
+/**
+ * Prune once at startup and then daily. Called from server.js; tests drive
+ * prune() directly with a fixed clock.
+ */
+function startPruning() {
+  if (pruneTimer) return;
+
+  const run = () => {
+    try {
+      const out = prune();
+      if (out.deleted) {
+        console.log(
+          `[izdelki] pobrisanih starih gibanj: ${out.deleted} (pred ${out.cutoff})`
+        );
+      }
+    } catch (err) {
+      console.error('[izdelki] napaka pri čiščenju zgodovine:', (err && err.message) || err);
+    }
+  };
+
+  run();
+  pruneTimer = setInterval(run, 24 * 60 * 60 * 1000);
+  console.log(`[izdelki] zgodovina gibanj: ${HISTORY_MONTHS} mesecev`);
+}
+
+function stopPruning() {
+  if (pruneTimer) clearInterval(pruneTimer);
+  pruneTimer = null;
+}
+
 module.exports = {
   KINDS,
   KIND_LABELS,
+  HISTORY_MONTHS,
   monthKey,
+  cutoffMonth,
   record,
   listForProduct,
   monthlyForProduct,
   monthlySummary,
   monthTotals,
   months,
+  prune,
+  startPruning,
+  stopPruning,
 };

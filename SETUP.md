@@ -92,7 +92,7 @@ Useful while developing:
 
 ```
 npm run dev             # restarts automatically when you edit a file
-npm test                # 464 checks
+npm test                # 482 checks
 npm run accounts        # list the login accounts
 ```
 
@@ -573,7 +573,7 @@ never see *Dostavljeno*.
 ```bash
 sudo nano /etc/salon.env
 sudo systemctl restart salon        # required after any change here
-npm test                            # 464 checks, no provider needed
+npm test                            # 482 checks, no provider needed
 ```
 
 Then tick the box in Nastavitve and book one appointment for a customer whose
@@ -652,6 +652,28 @@ towards zero.
 Selling more than the stock count allows is recorded in full, while the count
 itself stops at zero: the sale happened, the count was simply wrong. Fix the
 count with a Popravek.
+
+### How long the history is kept
+
+Movements older than **12 months** are deleted automatically. A February from
+four years ago is of no use to the salon and only grows the database, so the
+report keeps the current month plus the twelve before it and forgets the rest.
+
+The clean-up runs when the app starts and once a day after that. To keep more
+or less, set it in `/etc/salon.env` and restart:
+
+```
+PRODUCT_HISTORY_MONTHS=24
+```
+
+**Zaloga is never affected.** The stock count lives on the product itself and
+is kept current as movements are recorded, so forgetting last year's history
+leaves today's count exactly as it was. The trade-off, accepted deliberately:
+stock can no longer be recalculated by adding up the movement list — but that
+was never how it was read.
+
+Deleted months disappear from the month picker and report as zero rather than
+showing stale figures.
 
 ---
 
@@ -774,7 +796,7 @@ hours, and the grid deliberately widens so it is never hidden. Not a fault.
 **Check the whole thing still works**
 
 ```bash
-cd /opt/salon/app && npm test        # 464 checks, uses a throwaway database
+cd /opt/salon/app && npm test        # 482 checks, uses a throwaway database
 ```
 
 ---

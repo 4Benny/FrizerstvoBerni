@@ -177,6 +177,69 @@ ok('history shows the price each line went at',
   history.some((h) => h.unit_price_cents === 990) &&
   history.some((h) => h.unit_price_cents === 1090));
 
+section('history is kept for a year, then forgotten');
+
+// A product with movements spread over four years, so there is something old
+// enough to be dropped and something recent enough to survive.
+const old = products.create({
+  name: 'Stari izdelek', description: '', quantity: 0, price_cents: 1000, active: 1,
+});
+const NOW = new Date(2026, 7, 20, 12, 0, 0); // August 2026
+const at = (y, m) => new Date(y, m - 1, 10, 9, 0, 0);
+
+moves.record({ product_id: old.id, kind: 'in', quantity: 5, unit_price_cents: 400, now: at(2022, 2) });
+moves.record({ product_id: old.id, kind: 'out', quantity: 1, unit_price_cents: 800, now: at(2022, 2) });
+moves.record({ product_id: old.id, kind: 'out', quantity: 1, unit_price_cents: 900, now: at(2024, 11) });
+moves.record({ product_id: old.id, kind: 'out', quantity: 1, unit_price_cents: 950, now: at(2025, 7) });
+moves.record({ product_id: old.id, kind: 'in', quantity: 10, unit_price_cents: 500, now: at(2025, 8) });
+moves.record({ product_id: old.id, kind: 'out', quantity: 2, unit_price_cents: 1000, now: at(2026, 3) });
+moves.record({ product_id: old.id, kind: 'out', quantity: 1, unit_price_cents: 1100, now: NOW });
+
+const stockBefore = products.get(old.id).quantity;
+ok('four years of history is there to begin with',
+  moves.monthlyForProduct(old.id).length === 6, moves.monthlyForProduct(old.id).map((m) => m.month));
+
+ok('the cutoff is twelve months back', moves.cutoffMonth(12, NOW) === '2025-08',
+  moves.cutoffMonth(12, NOW));
+
+const pruned = moves.prune({ months: 12, now: NOW });
+ok('pruning reports what it removed', pruned.deleted === 4, pruned);
+
+const kept = moves.monthlyForProduct(old.id).map((m) => m.month);
+ok('February four years ago is gone', !kept.includes('2022-02'), kept);
+ok('an in-between old month is gone', !kept.includes('2024-11'), kept);
+ok('the month just outside the window is gone', !kept.includes('2025-07'), kept);
+ok('the month on the boundary is kept', kept.includes('2025-08'), kept);
+ok('recent months are kept', kept.includes('2026-03') && kept.includes('2026-08'), kept);
+ok('only the kept months remain', kept.length === 3, kept);
+
+// The point that matters most: forgetting history must not move the stock.
+ok('zaloga is untouched by pruning', products.get(old.id).quantity === stockBefore,
+  { before: stockBefore, after: products.get(old.id).quantity });
+
+ok('the month list no longer offers the old months',
+  !moves.months().includes('2022-02') && !moves.months().includes('2024-11'),
+  moves.months());
+ok('an old month reports nothing rather than stale figures',
+  moves.monthlySummary('2022-02').length === 0);
+ok('old totals are zero, not wrong', moves.monthTotals('2022-02').revenue_cents === 0,
+  moves.monthTotals('2022-02'));
+
+ok('the surviving price history is still per-month',
+  moves.monthlyForProduct(old.id).find((m) => m.month === '2026-03').avg_sale_cents === 1000 &&
+  moves.monthlyForProduct(old.id).find((m) => m.month === '2026-08').avg_sale_cents === 1100,
+  moves.monthlyForProduct(old.id).map((m) => [m.month, m.avg_sale_cents]));
+
+ok('pruning again changes nothing', moves.prune({ months: 12, now: NOW }).deleted === 0);
+ok('the untouched products kept their history', moves.monthlyForProduct(shampoo.id).length === 2,
+  moves.monthlyForProduct(shampoo.id).length);
+
+// Recording still works after a prune, and lands in the current month.
+const after = moves.record({ product_id: old.id, kind: 'out', quantity: 1, unit_price_cents: 1200, now: NOW });
+ok('a sale after pruning is recorded', after.ok === true, after);
+ok('and it lowers the stock', products.get(old.id).quantity === stockBefore - 1,
+  products.get(old.id).quantity);
+
 console.log(`\n===== ${pass} passed, ${fail} failed =====`);
 if (failures.length) console.log('Failures:\n  - ' + failures.join('\n  - '));
 console.log('');

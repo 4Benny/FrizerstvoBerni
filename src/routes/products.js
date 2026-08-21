@@ -96,6 +96,7 @@ router.get('/report', (req, res) => {
     months: available,
     rows: moves.monthlySummary(month),
     totals: moves.monthTotals(month),
+    historyMonths: moves.HISTORY_MONTHS,
   });
 });
 
@@ -107,6 +108,7 @@ router.get('/:id', (req, res, next) => {
     product,
     monthly: moves.monthlyForProduct(product.id),
     history: moves.listForProduct(product.id, 30),
+    historyMonths: moves.HISTORY_MONTHS,
   });
 });
 
