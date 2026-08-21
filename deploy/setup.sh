@@ -1,6 +1,6 @@
 ﻿#!/usr/bin/env bash
 #
-# Namestitev aplikacije Frizerski salon Berni na svež strežnik Ubuntu/Debian.
+# Namestitev aplikacije Frizerstvo Berni na svež strežnik Ubuntu/Debian.
 #
 # Zagon na strežniku (kot uporabnik s pravico sudo):
 #
@@ -124,7 +124,7 @@ fi
 say "Nastavljam storitev systemd"
 cat >"$SERVICE" <<EOF
 [Unit]
-Description=Frizerski salon Berni
+Description=Frizerstvo Berni
 After=network.target
 
 [Service]

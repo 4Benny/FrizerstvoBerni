@@ -21,7 +21,7 @@ const ABOUT = [
   'Za občutljiva lasišča nudimo barve ECHOES, ki so popolnoma brez amonijaka ter blago učinkujejo na kožo brez dražilnih učinkov. Barve so brez vonja, 100 % prekrijejo sive lase. Vsebujejo organsko kakavovo maslo, karitejevo maslo, mangovo maslo, kukui olje in kokosovo olje. Ne vsebujejo parabenov, silikonov, parfuma, etanola in ostalih alergenih snovi. Lasje so po uporabi barve ECHOES sijoči, neizsušeni in zaščiteni pred poškodbami sonca. Moškim priporočamo barvo LISAP MAN, ki pokrije sive lase že v nekaj minutah. Rezultat je naraven videz las, barva pa postopoma izgine po petih tednih, tako da ni nezaželenega narastka.',
   'Za lepotni ritual priporočamo ECHOES šampon in balzam, ki poudari sijaj barv ter nežno in učinkovito očisti lase in lasišče. Edinstvena mešanica petih vrst naravnega masla in olja prodre globoko v lase, jih od znotraj nahrani in zmanjša razcepljene konice. Priporočamo tudi ORIFLUIDO, ki vsebuje olje ojstrice, laneno olje in arganovo olje — negovalna kolekcija globinsko vlaži in krepi lase ter jim povrne sijaj. Stranke razvajamo tudi s PARAFINSKO NEGO ROK, ki odlično poskrbi za suho in razpokano kožo ter je pravo olajšanje za morebitne bolečine in revmo.',
   'Tukaj smo za vas.',
-  'Frizerski salon Berni se nahaja na Iršičevi ulici 15 v neposredni bližini dvorane Vinka Cajnka in ima zagotovljeno brezplačno parkirišče. V salonu je na razpolago Wi-Fi dostopna točka za brezplačni brezžični internet.',
+  'Frizerstvo Berni se nahaja na Iršičevi ulici 15 v neposredni bližini dvorane Vinka Cajnka in ima zagotovljeno brezplačno parkirišče. V salonu je na razpolago Wi-Fi dostopna točka za brezplačni brezžični internet.',
 ].join('\n\n');
 
 // name, minutes, euros (0 = price on request), category
@@ -61,7 +61,7 @@ const SERVICES = [
 /* --------------------------------------------------------------- settings */
 
 settings.setMany({
-  salon_name: 'Frizerski salon Berni',
+  salon_name: 'Frizerstvo Berni',
   slogan: 'Frizerske storitve za ženske, moške in otroke',
   about: ABOUT,
   address: 'Iršičeva ulica 15',

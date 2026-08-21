@@ -1,4 +1,4 @@
-# Setup guide — Frizerski salon Berni
+# Setup guide — Frizerstvo Berni
 
 Everything needed to get this running, from nothing to a working salon system:
 the database question, uploading to a server, running it, login details, SMS,
@@ -230,7 +230,7 @@ nano /etc/systemd/system/salon.service
 
 ```ini
 [Unit]
-Description=Frizerski salon Berni
+Description=Frizerstvo Berni
 After=network.target
 
 [Service]

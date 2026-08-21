@@ -77,9 +77,11 @@ function ensureSeed() {
 
   // Give the salon a usable starting identity; the admin edits this in Settings.
   settings.setMany({
-    salon_name: 'Frizerski salon',
+    salon_name: 'Frizerstvo Berni',
     slogan: 'Frizerske storitve',
     phone: '031 123 456',
+    logo_url: '/img/logo.png',
+    emblem_url: '/img/emblem.jpg',
   });
 
   console.log('Prvi zagon: ustvarjen skrbniški račun.');

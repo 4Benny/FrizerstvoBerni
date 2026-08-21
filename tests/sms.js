@@ -96,7 +96,7 @@ section('phone numbers to E.164');
   const sms = require(path.join(__dirname, '..', 'src', 'sms'));
   const settings = require(path.join(__dirname, '..', 'src', 'settings'));
   settings.set('sms_enabled', '1');
-  settings.set('salon_name', 'Frizerski salon Berni');
+  settings.set('salon_name', 'Frizerstvo Berni');
 
   const customer = { id: 1, first_name: 'Ana', phone: '031 123 456' };
   const appt = {
@@ -121,7 +121,7 @@ section('phone numbers to E.164');
     parsed && parsed.phoneNumbers);
   ok('sender from SMS_SENDER', parsed && parsed.from === 'Berni', parsed && parsed.from);
   ok('message is the Slovene template',
-    parsed && parsed.message === 'Frizerski salon Berni: Pozdravljeni Ana, naročeni ste 27.08.2026 ob 11:00. Storitev: MOŠKO MODERNO, FADE STRIŽENJE. Lep pozdrav.',
+    parsed && parsed.message === 'Frizerstvo Berni: Pozdravljeni Ana, naročeni ste 27.08.2026 ob 11:00. Storitev: MOŠKO MODERNO, FADE STRIŽENJE. Lep pozdrav.',
     parsed && parsed.message);
 
   // A name containing a quote must not break the JSON body.
@@ -143,7 +143,7 @@ section('phone numbers to E.164');
   const form = new URLSearchParams(received[0] ? received[0].body : '');
   ok('form content type', /x-www-form-urlencoded/.test(received[0].contentType || ''), received[0].contentType);
   ok('form carries the number', form.get('recipient') === '+38631123456', form.get('recipient'));
-  ok('form carries the message', (form.get('body') || '').startsWith('Frizerski salon Berni:'), form.get('body'));
+  ok('form carries the message', (form.get('body') || '').startsWith('Frizerstvo Berni:'), form.get('body'));
 
   // a failing gateway must not lose the appointment
   received.length = 0;

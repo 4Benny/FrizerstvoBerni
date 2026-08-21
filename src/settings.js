@@ -5,8 +5,8 @@ const { db } = require('./db');
 // Every setting the application understands, with its default. The public
 // website and the calendar read these instead of hard-coding salon details.
 const DEFAULTS = {
-  salon_name: 'Studio Hair',
-  slogan: 'Professional hairdressing services',
+  salon_name: 'Frizerstvo Berni',
+  slogan: 'Frizerske storitve',
   address: '',
   city: '',
   phone: '',
@@ -17,9 +17,10 @@ const DEFAULTS = {
   other_link: '',
   other_link_label: '',
   map_url: '',
-  // Paths under /public, e.g. /img/logo.png. Empty falls back to the salon name.
-  logo_url: '',
-  emblem_url: '',
+  // Paths under /public. Empty falls back to the salon name as text. Both
+  // files ship with the app: the script wordmark and the round emblem.
+  logo_url: '/img/logo.png',
+  emblem_url: '/img/emblem.jpg',
   // Each weekday has a mode: 'open' (fixed times), 'closed', or 'text' (free
   // wording such as "Po dogovoru" shown in place of the times).
   opening_hours: JSON.stringify({

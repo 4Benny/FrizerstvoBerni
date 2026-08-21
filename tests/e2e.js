@@ -77,7 +77,7 @@ async function login(user, password) {
 /** Standard salon settings used by most tests. */
 function settingsForm(over = {}) {
   const form = {
-    salon_name: 'Frizerski salon',
+    salon_name: 'Frizerstvo Berni',
     slogan: 'Professional hairdressing services',
     address: 'Glavna 1',
     city: 'Ljubljana',
@@ -122,7 +122,7 @@ function settingsForm(over = {}) {
   section('public website');
   let r = await req('/');
   ok('public page 200', r.status === 200);
-  ok('shows salon name', r.text.includes('Frizerski salon'));
+  ok('shows salon name', r.text.includes('Frizerstvo Berni'));
   ok('shows call-to-book phone', r.text.includes('031 123 456'));
   ok('has POKLIČITE ZA TERMIN button', r.text.includes('POKLIČITE ZA TERMIN'));
   ok('phone is a tel: link', r.text.includes('href="tel:031123456"'));
