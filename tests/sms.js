@@ -89,6 +89,61 @@ section('separators inside the message cannot corrupt the body');
   ok('ampersand is fine in JSON mode too', json.text === text, json.text);
 }
 
+/* --------------------------------------------------- one message, one SMS - */
+
+section('messages are kept inside a single SMS');
+{
+  const sms = require(path.join(__dirname, '..', 'src', 'sms'));
+
+  // The GSM-7 alphabet holds 160 characters per message. One character
+  // outside it drops the limit to 70, so a normal confirmation would be
+  // billed twice. These are the exact letters that would do it.
+  const GSM_BASIC =
+    '@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?¡' +
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà';
+  const GSM_EXTENDED = '^{}\\[~]|€';
+  const singleSms = (text) =>
+    [...text].every((c) => GSM_BASIC.includes(c) || GSM_EXTENDED.includes(c)) &&
+    text.length <= 160;
+
+  ok('s-caron loses its mark', sms.toPlain('š') === 's');
+  ok('c-caron loses its mark', sms.toPlain('č') === 'c');
+  ok('z-caron loses its mark', sms.toPlain('ž') === 'z');
+  ok('capitals too', sms.toPlain('ŠČŽ') === 'SCZ', sms.toPlain('ŠČŽ'));
+  ok('an em dash becomes a hyphen', sms.toPlain('a — b') === 'a - b', sms.toPlain('a — b'));
+  ok('Slovene quotes become plain ones', sms.toPlain('„citat“') === '"citat"',
+    sms.toPlain('„citat“'));
+  ok('an ellipsis is spelled out', sms.toPlain('a…') === 'a...', sms.toPlain('a…'));
+  ok('plain text is left alone', sms.toPlain('Ana Novak 12:30') === 'Ana Novak 12:30');
+  ok('the euro sign survives', sms.toPlain('25 €') === '25 €', sms.toPlain('25 €'));
+  ok('something with no plain form does not corrupt the message',
+    sms.toPlain('日') === '?', sms.toPlain('日'));
+
+  const confirmation =
+    'Frizerstvo Berni: Pozdravljeni Ana, naročeni ste 27.08.2026 ob 11:00. ' +
+    'Storitev: Žensko striženje. Lep pozdrav.';
+  ok('a real confirmation would otherwise need two messages',
+    !singleSms(confirmation));
+  ok('stripped, it fits one', singleSms(sms.toPlain(confirmation)),
+    sms.toPlain(confirmation).length);
+
+  const reminder =
+    'Frizerstvo Berni: Opomnik — vaš termin je 27.08.2026 ob 11:00. ' +
+    'Storitev: Žensko striženje. Se vidimo!';
+  ok('the reminder fits one too', singleSms(sms.toPlain(reminder)),
+    sms.toPlain(reminder).length);
+
+  // A customer whose own name carries the letters must not break it either.
+  ok('an awkward customer name still fits',
+    singleSms(sms.toPlain('Frizerstvo Berni: Pozdravljeni Špela Čuk, naročeni ste.')));
+
+  const settings = require(path.join(__dirname, '..', 'src', 'settings'));
+  settings.set('sms_plain_text', '0');
+  ok('the salon can turn it off', sms.forSending('šč') === 'šč', sms.forSending('šč'));
+  settings.set('sms_plain_text', '1');
+  ok('and back on', sms.forSending('šč') === 'sc', sms.forSending('šč'));
+}
+
 /* ------------------------------------------------------- HTTP driver ----- */
 
 (async () => {
@@ -181,8 +236,9 @@ section('separators inside the message cannot corrupt the body');
   ok('number converted to E.164', parsed && parsed.phoneNumbers[0] === '+38631123456',
     parsed && parsed.phoneNumbers);
   ok('sender from SMS_SENDER', parsed && parsed.from === 'Berni', parsed && parsed.from);
-  ok('message is the Slovene template',
-    parsed && parsed.message === 'Frizerstvo Berni: Pozdravljeni Ana, naročeni ste 27.08.2026 ob 11:00. Storitev: MOŠKO MODERNO, FADE STRIŽENJE. Lep pozdrav.',
+  // Sent without the diacritics, so the whole message stays inside one SMS.
+  ok('message is the Slovene template, without the diacritics',
+    parsed && parsed.message === 'Frizerstvo Berni: Pozdravljeni Ana, naroceni ste 27.08.2026 ob 11:00. Storitev: MOSKO MODERNO, FADE STRIZENJE. Lep pozdrav.',
     parsed && parsed.message);
 
   // A name containing a quote must not break the JSON body.
@@ -213,7 +269,7 @@ section('separators inside the message cannot corrupt the body');
   });
   const ampForm = new URLSearchParams(received[0] ? received[0].body : '');
   ok('ampersand survives a real form-mode send',
-    (ampForm.get('body') || '').includes('Barvanje & striženje'), ampForm.get('body'));
+    (ampForm.get('body') || '').includes('Barvanje & strizenje'), ampForm.get('body'));
 
   section('retry, backoff and giving up');
 

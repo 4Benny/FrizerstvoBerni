@@ -36,6 +36,11 @@ const DEFAULTS = {
   calendar_end: '20:00',
   paid_before_free: '9',
   sms_enabled: '0',
+  // Send without š, č and ž. One such letter forces the whole message into
+  // Unicode, where the limit drops from 160 characters to 70 — so a normal
+  // confirmation is billed as two messages instead of one. On by default
+  // because that is a doubled bill for a cosmetic difference.
+  sms_plain_text: '1',
   // Customers booking themselves on the website. Off by default: it needs SMS
   // working first, because the phone number is verified by a code.
   public_booking_enabled: '0',

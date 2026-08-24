@@ -212,6 +212,19 @@
       Pošlji SMS ob naročilu, prestavitvi in odpovedi
     </label>
     <label class="check">
+      <input type="checkbox" name="sms_plain_text" value="1"
+             <%= values.sms_plain_text === '1' ? 'checked' : '' %>>
+      Pošiljaj brez šumnikov (priporočeno)
+    </label>
+    <p class="hint">
+      En sam <strong>š</strong>, <strong>č</strong> ali <strong>ž</strong> potisne
+      sporočilo v Unicode, kjer je meja namesto 160 znakov le <strong>70</strong> —
+      potrditev termina se tako zaračuna kot <strong>dve</strong> sporočili namesto
+      enega. Brez šumnikov se glasi „Pozdravljeni Ana, naroceni ste …" in stane
+      polovico.
+    </p>
+
+    <label class="check">
       <input type="checkbox" name="sms_reminder_enabled" value="1"
              <%= values.sms_reminder_enabled === '1' ? 'checked' : '' %>>
       Pošlji opomnik pred terminom

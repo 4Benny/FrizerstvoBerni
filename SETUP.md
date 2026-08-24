@@ -92,7 +92,7 @@ Useful while developing:
 
 ```
 npm run dev             # restarts automatically when you edit a file
-npm test                # 566 checks
+npm test                # 725 checks
 npm run accounts        # list the login accounts
 ```
 
@@ -405,6 +405,32 @@ gateway that is briefly unreachable therefore costs nothing.
 Phone numbers are converted automatically before sending, so `031 331 636`
 reaches the gateway as `+38631331636`.
 
+### What it costs to send
+
+An SMS holds 160 characters — but only while every character is in the GSM
+alphabet. One **š**, **č** or **ž** pushes the whole message into Unicode,
+where the limit is **70**, so an ordinary confirmation is billed as two.
+
+The app therefore sends without the diacritics by default: *Pozdravljeni Ana,
+naroceni ste …*. Every template then fits one message. The switch is in
+Nastavitve — *Pošiljaj brez šumnikov* — if the salon would rather pay double
+for the nicer spelling.
+
+Two messages go out per appointment at most, in the normal case:
+
+| When | Message |
+|---|---|
+| the termin is booked | confirmation, immediately |
+| a set number of hours before it | reminder, if switched on |
+
+Rescheduling and cancelling send one too, the cancellation only when the box
+is ticked. Customers booking themselves also receive one code to verify their
+number.
+
+So for roughly 250 appointments a month: about 250 messages with confirmations
+alone, about 500 with reminders switched on. Those are the figures to quote a
+provider.
+
 ### Reminders before the appointment
 
 Nastavitve also has *Pošlji opomnik pred terminom* with a lead time in hours
@@ -579,6 +605,10 @@ never see *Dostavljeno*.
 | `SMS_BATCH` | `5` | messages sent per pass |
 | `SMS_REMINDER_TICK_MS` | `300000` | how often reminders are scanned |
 | `SMS_HISTORY_MONTHS` | `12` | how long finished messages are kept |
+
+Sending without diacritics is a setting rather than a variable, because it is
+the salon's decision and it doubles or halves the bill: Nastavitve → *Pošiljaj
+brez šumnikov*.
 | `SMS_HTTP_TIMEOUT_MS` | `10000` | give up on a silent gateway |
 | `SMS_COUNTRY_CODE` | `386` | country for local numbers |
 
@@ -587,7 +617,7 @@ never see *Dostavljeno*.
 ```bash
 sudo nano /etc/salon.env
 sudo systemctl restart salon        # required after any change here
-npm test                            # 566 checks, no provider needed
+npm test                            # 725 checks, no provider needed
 ```
 
 Then tick the box in Nastavitve and book one appointment for a customer whose
@@ -840,7 +870,7 @@ hours, and the grid deliberately widens so it is never hidden. Not a fault.
 **Check the whole thing still works**
 
 ```bash
-cd /opt/salon/app && npm test        # 566 checks, uses a throwaway database
+cd /opt/salon/app && npm test        # 725 checks, uses a throwaway database
 ```
 
 ---

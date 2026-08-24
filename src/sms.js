@@ -99,6 +99,54 @@ function toE164(raw) {
   return '+' + COUNTRY_CODE + digits;
 }
 
+/* ------------------------------------------------------- plain characters */
+
+/**
+ * Anything outside the GSM-7 alphabet forces a message into Unicode, and with
+ * it the per-message limit from 160 characters down to 70. One š is enough to
+ * turn every appointment confirmation into two billed messages.
+ *
+ * Accented letters lose their marks (š -> s); the punctuation a template might
+ * carry is mapped to its plain equivalent. Anything still unrecognised becomes
+ * a question mark rather than silently doubling the cost of every message.
+ */
+const PUNCTUATION = {
+  '—': '-', '–': '-', '−': '-',
+  '„': '"', '“': '"', '”': '"', '»': '"', '«': '"',
+  '‘': "'", '’': "'",
+  '…': '...',
+  '\u00a0': ' ',
+};
+
+/** The GSM-7 basic set, plus the few characters its extension table adds. */
+const GSM_BASIC =
+  '@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?¡' +
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà';
+const GSM_EXTENDED = '^{}\\[~]|€';
+
+function isGsm(char) {
+  return GSM_BASIC.includes(char) || GSM_EXTENDED.includes(char);
+}
+
+/** Reduce text to characters a single-rate SMS can carry. */
+function toPlain(value) {
+  let out = '';
+  for (const char of String(value == null ? '' : value)) {
+    if (isGsm(char)) { out += char; continue; }
+    if (PUNCTUATION[char] !== undefined) { out += PUNCTUATION[char]; continue; }
+    // Decompose, then drop the combining marks: š -> s, č -> c, ž -> z.
+    const stripped = char.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (stripped && [...stripped].every(isGsm)) { out += stripped; continue; }
+    out += '?';
+  }
+  return out;
+}
+
+/** Applied to every outgoing message unless the salon turns it off. */
+function forSending(body) {
+  return settings.get('sms_plain_text') === '1' ? toPlain(body) : String(body);
+}
+
 /* ------------------------------------------------------------- templates */
 
 function templates() {
@@ -386,7 +434,7 @@ function enqueue(kind, customer, appt) {
     };
   }
 
-  const body = build(customer, appt);
+  const body = forSending(build(customer, appt));
 
   // Gateways need E.164; the salon stores numbers as they are written locally.
   const dialled = toE164(customer.phone);
@@ -440,7 +488,7 @@ function enqueueText(kind, phone, body, { customerId = null } = {}) {
     customer_id: customerId,
     phone: dialled,
     kind,
-    body,
+    body: forSending(body),
     status: 'queued',
     next_attempt_at: util.nowStamp(),
   });
@@ -874,6 +922,8 @@ module.exports = {
   MAX_ATTEMPTS,
   HISTORY_MONTHS,
   toE164,
+  toPlain,
+  forSending,
   prune,
   pruneCutoff,
   enqueue,
