@@ -110,8 +110,8 @@ function create(data) {
       `INSERT INTO appointments
          (customer_id, employee_id, service_id, service_name, date,
           start_min, duration_min, end_min, price_cents, status, notes,
-          created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?)`
+          is_free, loyalty_delta, loyalty_applied, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?)`
     )
     .run(
       Number(data.customer_id),
@@ -124,6 +124,9 @@ function create(data) {
       startMin + duration,
       Math.max(0, Number(data.price_cents) || 0),
       util.str(data.notes, 2000),
+      data.is_free ? 1 : 0,
+      Math.round(Number(data.loyalty_delta) || 0),
+      data.loyalty_applied ? 1 : 0,
       now,
       now
     );
@@ -183,6 +186,14 @@ function setStatus(id, status, reason = '') {
   return getFull(id);
 }
 
+/** Record whether this appointment currently counts towards loyalty. */
+function setLoyaltyApplied(id, applied) {
+  db.prepare(
+    'UPDATE appointments SET loyalty_applied = ?, updated_at = ? WHERE id = ?'
+  ).run(applied ? 1 : 0, util.nowStamp(), Number(id));
+  return get(id);
+}
+
 module.exports = {
   STATUSES,
   STATUS_LABELS,
@@ -196,4 +207,5 @@ module.exports = {
   update,
   reschedule,
   setStatus,
+  setLoyaltyApplied,
 };

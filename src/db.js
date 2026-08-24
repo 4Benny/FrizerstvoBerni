@@ -87,6 +87,14 @@ CREATE TABLE IF NOT EXISTS appointments (
   status        TEXT NOT NULL DEFAULT 'scheduled',
   notes         TEXT NOT NULL DEFAULT '',
   cancel_reason TEXT NOT NULL DEFAULT '',
+  -- Loyalty bookkeeping. is_free marks the visit that was redeemed against the
+  -- counter. loyalty_delta is the exact change this appointment made to it, so
+  -- reversing is precise even if the salon later changes the threshold, and
+  -- loyalty_applied says whether that change is currently in force — which is
+  -- what lets a cancellation be undone and a re-opening redone.
+  is_free         INTEGER NOT NULL DEFAULT 0,
+  loyalty_delta   INTEGER NOT NULL DEFAULT 0,
+  loyalty_applied INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT NOT NULL,
   updated_at    TEXT NOT NULL
 );
@@ -168,6 +176,9 @@ function addColumn(table, column, definition) {
 // Retry bookkeeping and delivery receipts arrived after the first release.
 // Databases created before that get the columns added in place.
 addColumn('products', 'cost_cents', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('appointments', 'is_free', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('appointments', 'loyalty_delta', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('appointments', 'loyalty_applied', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('sms_log', 'attempts', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('sms_log', 'next_attempt_at', "TEXT NOT NULL DEFAULT ''");
 addColumn('sms_log', 'provider_id', "TEXT NOT NULL DEFAULT ''");

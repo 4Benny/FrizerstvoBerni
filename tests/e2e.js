@@ -301,6 +301,13 @@ function settingsForm(over = {}) {
   }});
   ok('different employee may share the time', r.data.ok === true, JSON.stringify(r.data));
   const otherEmp = r.data.appointment.id;
+  // Sara is seeded at 9 of 9, so this booking is the free one.
+  ok('a customer at the threshold redeems the free visit',
+    r.data.appointment.is_free === 1, r.data.appointment.is_free);
+  ok('the free visit costs nothing', r.data.appointment.price_cents === 0,
+    r.data.appointment.price_cents);
+  ok('redeeming resets her counter', r.data.customer.visit_count === 0,
+    r.data.customer && r.data.customer.visit_count);
 
   section('manual price and duration');
   r = await req('/api/appointments', { method: 'POST', json: {
@@ -345,7 +352,7 @@ function settingsForm(over = {}) {
   ok('panel shows employee', r.data.html.includes('Maja Novak'));
   ok('panel shows phone', r.data.html.includes('031 123 456'));
   ok('panel shows price', r.data.html.includes('€25.00'));
-  ok('panel shows visit counter', r.data.html.includes('8 / 9'));
+  ok('panel shows visit counter', /\d+ \/ 9/.test(r.data.html), 'no N / 9 in panel');
   ok('panel shows notes', r.data.html.includes('Prefers shorter sides.'));
   ok('panel offers all five actions',
     ['Zaključi', 'Prestavi', 'Uredi', 'Ni prišla', 'Odpovej termin'].every((b) => r.data.html.includes('>' + b + '<')));
@@ -406,18 +413,45 @@ function settingsForm(over = {}) {
     date: '2026-08-20', start: '11:30', employee_id: EMP_MAJA,
   }});
 
-  section('statuses never touch the visit counter');
-  r = await req(`/api/customers/${ana.id}`);
-  const beforeCount = r.data.customer.visit_count;
+  section('statuses and the visit counter');
   r = await req(`/api/appointments/${custom}/status`, { method: 'POST', json: { status: 'completed' } });
   ok('complete works', r.data.ok && r.data.appointment.status === 'completed');
-  r = await req(`/api/customers/${ana.id}`);
-  ok('completing left the counter alone', r.data.customer.visit_count === beforeCount);
+
+  r = await req('/api/customers', { method: 'POST', json: {
+    first_name: 'Zvezda', last_name: 'Test', phone: '031 909 090',
+  }});
+  const counterCustomer = r.data.customer.id;
+  ok('a fresh customer starts at zero', r.data.customer.visit_count === 0,
+    r.data.customer.visit_count);
+
+  r = await req('/api/appointments', { method: 'POST', json: {
+    customer_id: counterCustomer, service_id: SVC_KIDS, employee_id: EMP_MAJA,
+    date: '2026-09-15', start: '09:00',
+  }});
+  ok('booking counts a visit automatically', r.data.customer.visit_count === 1,
+    r.data.customer && r.data.customer.visit_count);
+  const counterAppt = r.data.appointment.id;
+
+  r = await req(`/api/appointments/${counterAppt}/status`, { method: 'POST', json: { status: 'completed' } });
+  ok('completing leaves the counter alone, booking already counted it',
+    r.data.customer.visit_count === 1, r.data.customer && r.data.customer.visit_count);
+
+  r = await req(`/api/appointments/${counterAppt}/status`, { method: 'POST', json: { status: 'no_show' } });
+  ok('a no-show takes the visit back', r.data.customer.visit_count === 0,
+    r.data.customer && r.data.customer.visit_count);
+
+  r = await req(`/api/appointments/${counterAppt}/status`, { method: 'POST', json: { status: 'scheduled' } });
+  ok('re-opening counts it again', r.data.customer.visit_count === 1,
+    r.data.customer && r.data.customer.visit_count);
+
+  r = await req(`/api/appointments/${counterAppt}/status`, { method: 'POST', json: {
+    status: 'cancelled', reason: 'test',
+  }});
+  ok('cancelling takes it back too', r.data.customer.visit_count === 0,
+    r.data.customer && r.data.customer.visit_count);
 
   r = await req(`/api/appointments/${backToBack}/status`, { method: 'POST', json: { status: 'no_show' } });
   ok('no show works', r.data.ok && r.data.appointment.status === 'no_show');
-  r = await req(`/api/customers/${ana.id}`);
-  ok('no show left the counter alone', r.data.customer.visit_count === beforeCount);
 
   r = await req(`/api/appointments/${otherEmp}/status`, { method: 'POST', json: {
     status: 'cancelled', reason: 'Called in sick', send_sms: true,
@@ -792,6 +826,11 @@ function settingsForm(over = {}) {
   ok('customer list loads', r.status === 200 && r.text.includes('Obiski'));
   r = await req('/app/customers?q=Ana');
   ok('customer list search works', r.text.includes('Ana Novak') && !r.text.includes('Marko Horvat'));
+  // She redeemed hers earlier in the run, so set the counter back by hand —
+  // which also checks the manual override still works alongside the automatic
+  // counting.
+  r = await req(`/app/customers/${sara.id}/visits`, { method: 'POST', form: { action: 'set', count: '9' } });
+  ok('the counter can still be set by hand', r.status === 302, 'status ' + r.status);
   r = await req(`/app/customers/${sara.id}`);
   ok('eligible customer shows the free badge', r.text.includes('NASLEDNJE STRIŽENJE BREZPLAČNO'));
   ok('eligible customer offers redeem', r.text.includes('Unovči brezplačno striženje'));

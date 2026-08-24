@@ -11,6 +11,13 @@
     <%= appt.date_display %> · <%= appt.start_time %> – <%= appt.end_time %>
   </p>
 
+  <% if (appt.is_free) { %>
+    <p class="status-banner status-freebie">
+      <strong>Unovčena brezplačna storitev.</strong>
+      <span class="muted">Števec obiskov se je ob naročilu ponastavil na 0.</span>
+    </p>
+  <% } %>
+
   <% if (appt.status !== 'scheduled') { %>
     <p class="status-banner status-<%= appt.status %>">
       Stanje: <strong><%= appt.status_label %></strong>
@@ -32,7 +39,13 @@
         <% } %>
       </dd>
     </div>
-    <div><dt>Cena</dt><dd><%= appt.price_display %></dd></div>
+    <div>
+      <dt>Cena</dt>
+      <dd>
+        <%= appt.price_display %>
+        <% if (appt.is_free) { %> <span class="badge badge-free">BREZPLAČNO</span><% } %>
+      </dd>
+    </div>
     <div><dt>Trajanje</dt><dd><%= appt.duration_min %> min</dd></div>
     <div>
       <dt>Obiski</dt>

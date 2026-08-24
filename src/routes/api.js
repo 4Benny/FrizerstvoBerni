@@ -8,6 +8,7 @@ const services = require('../repo/services');
 const products = require('../repo/products');
 const productMoves = require('../repo/product-moves');
 const settings = require('../settings');
+const loyalty = require('../loyalty');
 const sms = require('../sms');
 const util = require('../util');
 const { requireLogin } = require('../middleware');
@@ -196,14 +197,30 @@ router.post('/appointments', async (req, res, next) => {
     });
     if (conflict) return fail(res, 409, conflictMessage(conflict), { conflict: true });
 
+    // The visit counter moves with the booking. A customer who has reached
+    // the threshold redeems it here: this visit is free and the counter goes
+    // back to zero. The decision is stored on the appointment so cancelling it
+    // can put the counter back exactly as it was.
+    const plan = loyalty.planFor(built.customer);
+
     // Save first — the appointment must exist even if the SMS fails.
-    const appt = appointments.create(built.data);
+    const appt = appointments.create({
+      ...built.data,
+      price_cents: plan.isFree ? 0 : built.data.price_cents,
+      is_free: plan.isFree,
+      loyalty_delta: plan.delta,
+      loyalty_applied: true,
+    });
+    customers.adjustVisitCount(built.customer.id, plan.delta);
     const result = sms.enqueue('booked', built.customer, appt);
 
     return res.json({
       ok: true,
       appointment: appt,
-      message: 'Termin je ustvarjen.',
+      message: plan.isFree
+        ? 'Termin je ustvarjen. Stranka je unovčila brezplačno storitev.'
+        : 'Termin je ustvarjen.',
+      customer: customerPayload(customers.get(built.customer.id)),
       sms: result,
     });
   } catch (err) {
@@ -323,13 +340,15 @@ router.post('/appointments/:id/status', async (req, res, next) => {
       if (conflict) return fail(res, 409, conflictMessage(conflict), { conflict: true });
     }
 
-    // Marking an appointment completed or no-show never touches the customer's
-    // visit counter; that counter is manual only.
+    // A cancellation or a no-show is not a visit, so its effect on the counter
+    // is undone; re-opening the termin applies it again. Completing one changes
+    // nothing, because booking already counted it.
     const appt = appointments.setStatus(
       existing.id,
       status,
       status === 'cancelled' ? req.body.reason : ''
     );
+    loyalty.syncToStatus(existing, status);
 
     const messages = {
       completed: 'Termin je zaključen.',
@@ -350,6 +369,7 @@ router.post('/appointments/:id/status', async (req, res, next) => {
       ok: true,
       appointment: appt,
       message: messages[status] || 'Termin je posodobljen.',
+      customer: customerPayload(customers.get(appt.customer_id)),
       sms: result,
     });
   } catch (err) {

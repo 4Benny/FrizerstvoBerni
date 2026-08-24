@@ -1505,3 +1505,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .pill-move-in     { background: var(--ok-soft);    color: var(--ok); }
 .pill-move-out    { background: var(--brand-soft); color: var(--brand-dark); }
 .pill-move-adjust { background: var(--warn-soft);  color: var(--warn); }
+
+/* A redeemed free visit — green rather than the warning colours, because it is
+   good news for the customer, not a problem with the appointment. */
+.status-banner.status-freebie { background: var(--free-soft); color: var(--free); }
