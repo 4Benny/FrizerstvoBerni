@@ -1,0 +1,78 @@
+<%- include('partials/head') %>
+
+<p class="crumb">
+  <% if (self) { %>
+    <a href="/app/calendar?employee=<%= employee.id %>">← Moj koledar</a>
+  <% } else { %>
+    <a href="/app/employees">← Zaposleni</a>
+  <% } %>
+</p>
+
+<div class="page-head">
+  <h1><%= title %></h1>
+</div>
+
+<% if (error) { %><div class="flash flash-error" role="alert"><%= error %></div><% } %>
+
+<form class="card form" method="post" action="<%= action %>">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <p class="hint">
+    Določi, kdaj je <strong><%= employee.first_name %></strong> na voljo za termine.
+    Stranke lahko prek spletne strani izberejo samo proste ure znotraj tega časa.
+    V koledarju lahko zaposleni še vedno vpiše termin kadarkoli — ta urnik omejuje
+    samo naročanje strank.
+  </p>
+
+  <% if (inherited) { %>
+    <div class="flash flash-info">
+      Ta zaposleni še nima svojega urnika, zato velja delovni čas salona.
+      Ko shranite, bo veljal spodnji urnik.
+    </div>
+  <% } %>
+
+  <div class="hours-editor">
+    <% days.forEach(function (day) { %>
+      <div class="hours-day" data-hours-day>
+        <div class="hours-name"><%= day.name %></div>
+
+        <div class="hours-mode">
+          <label class="radio">
+            <input type="radio" name="mode_<%= day.day %>" value="open" data-hours-mode
+                   <%= day.mode === 'open' ? 'checked' : '' %>>
+            Dela
+          </label>
+          <label class="radio">
+            <input type="radio" name="mode_<%= day.day %>" value="closed" data-hours-mode
+                   <%= day.mode === 'open' ? '' : 'checked' %>>
+            Ne dela
+          </label>
+        </div>
+
+        <div class="hours-inputs">
+          <span class="hours-times" data-hours-times <%= day.mode === 'open' ? '' : 'hidden' %>>
+            <input type="time" name="open_<%= day.day %>"
+                   value="<%= day.open || '09:00' %>"
+                   aria-label="<%= day.name %> — začetek">
+            <span aria-hidden="true">–</span>
+            <input type="time" name="close_<%= day.day %>"
+                   value="<%= day.close || '17:00' %>"
+                   aria-label="<%= day.name %> — konec">
+          </span>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Shrani urnik</button>
+    <% if (!inherited) { %>
+      <button type="submit" name="action" value="reset" class="btn btn-quiet"
+              data-confirm="Izbrišem urnik in uporabim delovni čas salona?">
+        Uporabi delovni čas salona
+      </button>
+    <% } %>
+  </div>
+</form>
+
+<%- include('partials/foot') %>

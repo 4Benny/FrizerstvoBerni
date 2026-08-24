@@ -59,6 +59,7 @@ app.use('/app/services', require('./src/routes/services'));
 app.use('/app/products', require('./src/routes/products'));
 app.use('/app/employees', require('./src/routes/employees'));
 app.use('/app/settings', require('./src/routes/settings'));
+app.use('/app/urnik', require('./src/routes/schedule'));
 app.use('/app/sms', require('./src/routes/sms-log'));
 app.use('/api', require('./src/routes/api'));
 

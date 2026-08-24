@@ -29,6 +29,10 @@ CREATE TABLE IF NOT EXISTS employees (
   role          TEXT NOT NULL DEFAULT 'employee',
   active        INTEGER NOT NULL DEFAULT 1,
   color         TEXT NOT NULL DEFAULT '#4f6df5',
+  -- The employee's own working week as JSON, keyed by weekday. Empty means
+  -- "same as the salon", which is how every employee behaved before this
+  -- existed. See src/schedule.js.
+  work_hours    TEXT NOT NULL DEFAULT '',
   created_at    TEXT NOT NULL
 );
 
@@ -175,6 +179,7 @@ function addColumn(table, column, definition) {
 
 // Retry bookkeeping and delivery receipts arrived after the first release.
 // Databases created before that get the columns added in place.
+addColumn('employees', 'work_hours', "TEXT NOT NULL DEFAULT ''");
 addColumn('products', 'cost_cents', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('appointments', 'is_free', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('appointments', 'loyalty_delta', 'INTEGER NOT NULL DEFAULT 0');

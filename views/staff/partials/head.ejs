@@ -28,6 +28,7 @@
     <a href="/app/customers" class="<%= path.startsWith('/app/customers') ? 'active' : '' %>">Stranke</a>
     <a href="/app/services" class="<%= path.startsWith('/app/services') ? 'active' : '' %>">Storitve</a>
     <a href="/app/products" class="<%= path.startsWith('/app/products') ? 'active' : '' %>">Izdelki</a>
+    <a href="/app/urnik" class="<%= path.startsWith('/app/urnik') ? 'active' : '' %>">Moj urnik</a>
     <% if (user && user.isAdmin) { %>
       <a href="/app/employees" class="<%= path.startsWith('/app/employees') ? 'active' : '' %>">Zaposleni</a>
       <a href="/app/sms" class="<%= path.startsWith('/app/sms') ? 'active' : '' %>">SMS</a>

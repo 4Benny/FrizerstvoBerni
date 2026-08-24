@@ -113,8 +113,16 @@ function countActiveAdmins(excludeId = null) {
   return row.n;
 }
 
+/** Replace an employee's working week. Pass '' to fall back to salon hours. */
+function setWorkHours(id, json) {
+  db.prepare('UPDATE employees SET work_hours = ? WHERE id = ?')
+    .run(String(json == null ? '' : json), Number(id));
+  return get(id);
+}
+
 module.exports = {
   PALETTE,
+  setWorkHours,
   get,
   byUsername,
   byLogin,
