@@ -1,0 +1,67 @@
+<%- include('booking-head') %>
+
+<ol class="booking-steps" aria-label="Koraki naročanja">
+  <li><a href="/narocanje">Storitev</a></li><li class="is-current">Termin</li><li>Podatki</li><li>Potrditev</li>
+</ol>
+
+<h1 class="booking-title"><%= service.name %></h1>
+<p class="booking-sub"><%= service.duration_min %> min · <%= util.formatMoney(service.price_cents) %></p>
+
+<form class="booking-filter" method="get" action="/narocanje/termin">
+  <input type="hidden" name="service" value="<%= service.id %>">
+  <label for="employee">Frizerka</label>
+  <select id="employee" name="employee" onchange="this.form.submit()">
+    <option value="">Katerakoli</option>
+    <% employees.forEach(function (e) { %>
+      <option value="<%= e.id %>" <%= employeeId === e.id ? 'selected' : '' %>>
+        <%= util.fullName(e) %>
+      </option>
+    <% }); %>
+  </select>
+  <noscript><button type="submit" class="btn">Pokaži</button></noscript>
+</form>
+
+<% if (!days.length) { %>
+  <p class="booking-empty">
+    V naslednjih tednih ni prostega termina za to storitev.
+    Pokličite nas na <a href="tel:<%= settings.phone.replace(/\s/g, '') %>"><%= settings.phone %></a>.
+  </p>
+<% } else { %>
+  <div class="booking-days" role="group" aria-label="Datum">
+    <% days.forEach(function (d) { %>
+      <a class="booking-day <%= d.date === chosenDate ? 'is-active' : '' %>"
+         href="/narocanje/termin?service=<%= service.id %><%= employeeId ? '&employee=' + employeeId : '' %>&date=<%= d.date %>">
+        <span class="booking-day-name"><%= d.weekday %></span>
+        <span class="booking-day-date"><%= d.label %></span>
+      </a>
+    <% }); %>
+  </div>
+
+  <% options.forEach(function (entry) { %>
+    <section class="booking-slots">
+      <h2><%= util.fullName(entry.employee) %></h2>
+      <div class="booking-slot-row">
+        <% entry.slots.forEach(function (slot) { %>
+          <form method="post" action="/narocanje/podatki" class="inline">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="service_id" value="<%= service.id %>">
+            <input type="hidden" name="employee_id" value="<%= entry.employee.id %>">
+            <input type="hidden" name="date" value="<%= chosenDate %>">
+            <input type="hidden" name="start_min" value="<%= slot.startMin %>">
+            <button type="submit" class="booking-slot">
+              <%= slot.label %>
+              <span class="booking-slot-end">– <%= slot.endLabel %></span>
+            </button>
+          </form>
+        <% }); %>
+      </div>
+    </section>
+  <% }); %>
+<% } %>
+
+<p class="booking-note">
+  Termin je mogoče rezervirati najmanj <%= leadHours %> ur vnaprej.
+  Za prej nas prosim pokličite.
+</p>
+
+<%- include('booking-foot') %>

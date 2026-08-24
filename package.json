@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node tests/migration.js && node tests/loyalty.js && node tests/availability.js && node tests/products.js && node tests/pdf.js && node tests/sms.js && node tests/run.js",
+    "test": "node tests/migration.js && node tests/loyalty.js && node tests/availability.js && node tests/booking.js && node tests/products.js && node tests/pdf.js && node tests/sms.js && node tests/run.js",
     "test:http": "node tests/run.js",
     "test:sms": "node tests/sms.js",
     "accounts": "node scripts/reset-password.js --list",
@@ -17,7 +17,8 @@
     "test:products": "node tests/products.js",
     "test:pdf": "node tests/pdf.js",
     "test:loyalty": "node tests/loyalty.js",
-    "test:availability": "node tests/availability.js"
+    "test:availability": "node tests/availability.js",
+    "test:booking": "node tests/booking.js"
   },
   "engines": {
     "node": ">=22.5.0"

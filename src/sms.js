@@ -147,6 +147,7 @@ const BODY_BUILDERS = {
 };
 
 const KIND_LABELS = {
+  verify: 'Potrditev številke',
   booked: 'Naročilo',
   rescheduled: 'Prestavitev',
   cancelled: 'Odpoved',
@@ -415,6 +416,34 @@ function enqueue(kind, customer, appt) {
     next_attempt_at: util.nowStamp(),
   });
 
+  return { status: 'queued', message: 'SMS je v vrsti za pošiljanje.', id };
+}
+
+/**
+ * Queue a message that is not about an appointment — currently the code a
+ * customer needs to prove they own the phone number they typed.
+ *
+ * Goes through the same outbox as everything else, so it retries and shows up
+ * in the SMS log; the booking page kicks the worker straight afterwards so the
+ * customer is not left waiting for the next tick.
+ */
+function enqueueText(kind, phone, body, { customerId = null } = {}) {
+  if (settings.get('sms_enabled') !== '1') {
+    return { status: 'disabled', message: 'SMS je izklopljen.' };
+  }
+  const dialled = toE164(phone);
+  if (!dialled) {
+    return { status: 'failed', message: 'Telefonska številka ni v uporabni obliki.' };
+  }
+  const id = insert({
+    appointment_id: null,
+    customer_id: customerId,
+    phone: dialled,
+    kind,
+    body,
+    status: 'queued',
+    next_attempt_at: util.nowStamp(),
+  });
   return { status: 'queued', message: 'SMS je v vrsti za pošiljanje.', id };
 }
 
@@ -848,6 +877,7 @@ module.exports = {
   prune,
   pruneCutoff,
   enqueue,
+  enqueueText,
   processDue,
   scanReminders,
   applyReceipt,

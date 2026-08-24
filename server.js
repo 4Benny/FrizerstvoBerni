@@ -52,6 +52,7 @@ app.use(middleware.templateLocals);
 app.use(middleware.checkCsrf);
 
 app.use('/', require('./src/routes/public'));
+app.use('/narocanje', require('./src/routes/booking'));
 app.use('/', require('./src/routes/auth'));
 app.use('/app', require('./src/routes/calendar'));
 app.use('/app/customers', require('./src/routes/customers'));

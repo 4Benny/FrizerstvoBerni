@@ -157,6 +157,20 @@ CREATE TABLE IF NOT EXISTS sms_log (
 );
 CREATE INDEX IF NOT EXISTS idx_sms_appt ON sms_log(appointment_id);
 
+-- One-time codes proving a customer owns the phone number they typed before a
+-- booking made on the public website is accepted. Only a hash is stored, the
+-- same way passwords are, so the log of a code is never the code itself.
+CREATE TABLE IF NOT EXISTS booking_codes (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  phone      TEXT NOT NULL,
+  code_hash  TEXT NOT NULL,
+  attempts   INTEGER NOT NULL DEFAULT 0,
+  consumed   INTEGER NOT NULL DEFAULT 0,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_booking_codes_phone ON booking_codes(phone, id DESC);
+
 CREATE TABLE IF NOT EXISTS sessions (
   sid     TEXT PRIMARY KEY,
   expires INTEGER NOT NULL,

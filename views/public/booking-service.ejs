@@ -1,0 +1,30 @@
+<%- include('booking-head') %>
+
+<ol class="booking-steps" aria-label="Koraki naročanja">
+  <li class="is-current">Storitev</li><li>Termin</li><li>Podatki</li><li>Potrditev</li>
+</ol>
+
+<h1 class="booking-title">Katero storitev želite?</h1>
+
+<% if (!services.length) { %>
+  <p class="booking-empty">Trenutno ni storitev za spletno naročanje. Pokličite nas.</p>
+<% } else { %>
+  <ul class="booking-list">
+    <% services.forEach(function (s) { %>
+      <li>
+        <a class="booking-option" href="/narocanje/termin?service=<%= s.id %>">
+          <span class="booking-option-main">
+            <strong><%= s.name %></strong>
+            <% if (s.description) { %><span class="booking-option-note"><%= s.description %></span><% } %>
+          </span>
+          <span class="booking-option-meta">
+            <span><%= s.duration_min %> min</span>
+            <strong><%= util.formatMoney(s.price_cents) %></strong>
+          </span>
+        </a>
+      </li>
+    <% }); %>
+  </ul>
+<% } %>
+
+<%- include('booking-foot') %>

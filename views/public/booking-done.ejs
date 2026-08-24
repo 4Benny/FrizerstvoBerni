@@ -1,0 +1,26 @@
+<%- include('booking-head') %>
+
+<div class="booking-done">
+  <p class="booking-tick" aria-hidden="true">✓</p>
+  <h1 class="booking-title">Termin je potrjen</h1>
+
+  <div class="booking-summary booking-summary-big">
+    <strong><%= appointment.service_name %></strong><br>
+    <%= util.formatDate(appointment.date) %> ob <%= util.formatTime(appointment.start_min) %><br>
+    <%= util.fullName(employee) %>
+  </div>
+
+  <% if (isFree) { %>
+    <p class="booking-free">Ta obisk je brezplačen — unovčili ste zvestobo.</p>
+  <% } %>
+
+  <p>Potrditev smo poslali tudi po SMS.</p>
+  <p class="booking-note">
+    Če termina ne morete obiskati, nas prosim pokličite
+    <% if (salonPhone) { %>na <a href="tel:<%= salonPhone.replace(/\s/g, '') %>"><%= salonPhone %></a><% } %>.
+  </p>
+
+  <a class="btn btn-primary booking-submit" href="/">Nazaj na spletno stran</a>
+</div>
+
+<%- include('booking-foot') %>

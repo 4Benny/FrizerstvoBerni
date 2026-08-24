@@ -1,0 +1,10 @@
+<%- include('booking-head') %>
+
+<h1 class="booking-title">Spletno naročanje ni na voljo</h1>
+<p>Termin z veseljem dogovorimo po telefonu.</p>
+<% if (settings.phone) { %>
+  <p class="booking-phone"><a href="tel:<%= settings.phone.replace(/\s/g, '') %>"><%= settings.phone %></a></p>
+<% } %>
+<a class="btn btn-primary booking-submit" href="/">Nazaj na spletno stran</a>
+
+<%- include('booking-foot') %>

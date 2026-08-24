@@ -1,0 +1,9 @@
+<%- include('booking-head') %>
+
+<h1 class="booking-title">Termin ni več prost</h1>
+<div class="booking-error" role="alert"><%= message %></div>
+<p>Nekdo je ta termin rezerviral, medtem ko ste potrjevali številko. Izberite drugega.</p>
+<a class="btn btn-primary booking-submit"
+   href="/narocanje/termin?service=<%= service ? service.id : '' %>">Izberi drug termin</a>
+
+<%- include('booking-foot') %>

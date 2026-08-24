@@ -1,0 +1,31 @@
+<%- include('booking-head') %>
+
+<ol class="booking-steps" aria-label="Koraki naročanja">
+  <li>Storitev</li><li>Termin</li><li>Podatki</li><li class="is-current">Potrditev</li>
+</ol>
+
+<h1 class="booking-title">Vpišite kodo</h1>
+<p class="booking-sub">
+  Na <strong><%= phone %></strong> smo poslali šestmestno kodo.
+  Velja <%= minutes %> minut.
+</p>
+
+<% if (error) { %><div class="booking-error" role="alert"><%= error %></div><% } %>
+
+<form class="booking-form" method="post" action="/narocanje/potrdi">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="field">
+    <label for="code">Koda</label>
+    <input id="code" name="code" type="text" required autofocus
+           inputmode="numeric" pattern="[0-9]*" maxlength="6"
+           autocomplete="one-time-code" class="booking-code-input">
+  </div>
+  <button type="submit" class="btn btn-primary booking-submit">Potrdi termin</button>
+</form>
+
+<p class="booking-note">
+  Kode ni? Preverite številko in
+  <a href="/narocanje">začnite znova</a>, ali nas pokličite.
+</p>
+
+<%- include('booking-foot') %>

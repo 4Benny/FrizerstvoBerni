@@ -36,6 +36,9 @@ const DEFAULTS = {
   calendar_end: '20:00',
   paid_before_free: '9',
   sms_enabled: '0',
+  // Customers booking themselves on the website. Off by default: it needs SMS
+  // working first, because the phone number is verified by a code.
+  public_booking_enabled: '0',
   // Reminder before the appointment. Off by default on purpose: switching it on
   // starts billing one more message per appointment, so the salon decides when.
   sms_reminder_enabled: '0',

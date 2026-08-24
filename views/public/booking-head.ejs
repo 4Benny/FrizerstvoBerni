@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="sl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#eb008b">
+<title><%= title %> · <%= settings.salon_name %></title>
+<% if (settings.emblem_url) { %><link rel="icon" href="<%= settings.emblem_url %>"><% } %>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<link rel="stylesheet" href="/css/public.css?v=<%= assetVersion %>">
+</head>
+<body>
+
+<header class="site-head">
+  <a class="logo" href="/">
+    <% if (settings.logo_url) { %>
+      <img class="logo-img" src="<%= settings.logo_url %>" alt="<%= settings.salon_name %>">
+    <% } else { %><%= settings.salon_name %><% } %>
+  </a>
+  <nav><a href="/">← Nazaj na spletno stran</a></nav>
+</header>
+
+<main class="booking-wrap">

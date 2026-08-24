@@ -114,6 +114,7 @@ router.post('/', (req, res) => {
     calendar_end: util.formatTime(end),
     paid_before_free: Math.round(paidBeforeFree),
     sms_enabled: util.boolInt(body.sms_enabled),
+    public_booking_enabled: util.boolInt(body.public_booking_enabled),
     sms_reminder_enabled: util.boolInt(body.sms_reminder_enabled),
     sms_reminder_hours_before: reminderHours,
     opening_hours: JSON.stringify(hours),

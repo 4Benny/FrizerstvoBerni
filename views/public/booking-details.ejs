@@ -1,0 +1,49 @@
+<%- include('booking-head') %>
+
+<ol class="booking-steps" aria-label="Koraki naročanja">
+  <li><a href="/narocanje">Storitev</a></li>
+  <li><a href="/narocanje/termin?service=<%= service.id %>">Termin</a></li>
+  <li class="is-current">Podatki</li><li>Potrditev</li>
+</ol>
+
+<h1 class="booking-title">Vaši podatki</h1>
+
+<div class="booking-summary">
+  <strong><%= service.name %></strong><br>
+  <%= util.formatDate(date) %> ob <%= util.formatTime(startMin) %><br>
+  <%= util.fullName(employee) %> · <%= util.formatMoney(service.price_cents) %>
+</div>
+
+<% if (error) { %><div class="booking-error" role="alert"><%= error %></div><% } %>
+
+<form class="booking-form" method="post" action="/narocanje/koda">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <div class="field">
+    <label for="first_name">Ime *</label>
+    <input id="first_name" name="first_name" type="text" required autofocus
+           autocomplete="given-name" value="<%= values.first_name || '' %>">
+  </div>
+
+  <div class="field">
+    <label for="last_name">Priimek</label>
+    <input id="last_name" name="last_name" type="text"
+           autocomplete="family-name" value="<%= values.last_name || '' %>">
+  </div>
+
+  <div class="field">
+    <label for="phone">Telefon *</label>
+    <input id="phone" name="phone" type="tel" required inputmode="tel"
+           autocomplete="tel" placeholder="031 123 456" value="<%= values.phone || '' %>">
+    <p class="hint">Na to številko pošljemo kodo za potrditev in obvestilo o terminu.</p>
+  </div>
+
+  <div class="field">
+    <label for="note">Opomba (neobvezno)</label>
+    <input id="note" name="note" type="text" maxlength="500" value="<%= values.note || '' %>">
+  </div>
+
+  <button type="submit" class="btn btn-primary booking-submit">Pošlji kodo</button>
+</form>
+
+<%- include('booking-foot') %>

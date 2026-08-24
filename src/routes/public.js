@@ -3,6 +3,7 @@
 const express = require('express');
 const services = require('../repo/services');
 const settings = require('../settings');
+const booking = require('../booking');
 const util = require('../util');
 
 const router = express.Router();
@@ -18,6 +19,7 @@ router.get('/', (req, res) => {
   res.render('public/home', {
     title: settings.get('salon_name'),
     services: services.active(),
+    bookingEnabled: booking.isEnabled(),
     hours: hours.map((day) => ({ ...day, isToday: day.day === today })),
   });
 });

@@ -53,7 +53,10 @@
         <a class="hero-phone" href="tel:<%= settings.phone.replace(/\s/g, '') %>"><%= settings.phone %></a>
       </p>
       <a class="cta" href="tel:<%= settings.phone.replace(/\s/g, '') %>">POKLIČITE ZA TERMIN</a>
-      <p class="hero-note">Termine dogovorimo po telefonu, po sporočilu ali osebno v salonu.</p>
+      <% if (bookingEnabled) { %>
+      <p class="hero-book"><a class="btn-book" href="/narocanje">NAROČI SE NA TERMIN</a></p>
+    <% } %>
+    <p class="hero-note">Termine dogovorimo po telefonu, po sporočilu ali osebno v salonu.</p>
     <% } else { %>
       <p class="hero-note">Za termin se oglasite v salonu.</p>
     <% } %>

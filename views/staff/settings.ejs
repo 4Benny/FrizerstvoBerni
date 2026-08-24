@@ -184,6 +184,28 @@
   </section>
 
   <section class="card form">
+    <h2>Spletno naročanje</h2>
+    <label class="check">
+      <input type="checkbox" name="public_booking_enabled" value="1"
+             <%= values.public_booking_enabled === '1' ? 'checked' : '' %>>
+      Stranke se lahko naročijo same prek spletne strani
+    </label>
+    <p class="hint">
+      Stranka izbere storitev, frizerko in prosto uro, nato pa številko potrdi
+      s kodo po SMS — brez tega bi lahko kdorkoli napolnil koledar z izmišljenimi
+      imeni. <strong>Deluje samo, kadar je SMS vklopljen in nastavljen na pravi
+      prehod.</strong> Ponujene so le ure znotraj urnika posamezne frizerke, v
+      katere izbrana storitev v celoti sodi.
+    </p>
+    <% if (values.public_booking_enabled === '1' && values.sms_enabled !== '1') { %>
+      <p class="hint hint-warn">
+        Spletno naročanje je vklopljeno, a SMS ni — dokler ga ne vklopite,
+        stranke ne morejo potrditi številke in naročanje ni na voljo.
+      </p>
+    <% } %>
+  </section>
+
+  <section class="card form">
     <h2>SMS obvestila</h2>
     <label class="check">
       <input type="checkbox" name="sms_enabled" value="1" <%= values.sms_enabled === '1' ? 'checked' : '' %>>
