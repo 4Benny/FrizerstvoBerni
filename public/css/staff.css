@@ -26,6 +26,10 @@
   --appt-bg: #fdeaf5;
   --appt-bg-hover: #fad6ea;
   --appt-border: #f2bcd9;
+  /* Typography — see public.css for why there are three roles. */
+  --font-script: "Great Vibes", "Segoe Script", cursive;
+  --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --font-body: "Segoe UI", system-ui, -apple-system, sans-serif;
   --radius: 10px;
   --shadow: 0 1px 2px rgba(20, 24, 35, .06), 0 6px 18px rgba(20, 24, 35, .06);
 }
@@ -36,7 +40,7 @@ body.staff {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
+  font: 15px/1.5 var(--font-body);
   -webkit-text-size-adjust: 100%;
 }
 
@@ -159,7 +163,13 @@ h1, h2, h3 { line-height: 1.25; }
   flex-wrap: wrap;
   margin-bottom: .35rem;
 }
-.page-head h1 { margin: .3rem 0; font-size: 1.5rem; }
+.page-head h1 {
+  margin: .3rem 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.9rem;
+  letter-spacing: .01em;
+}
 
 .page-actions {
   display: flex;
@@ -1226,12 +1236,17 @@ button:focus-visible, a:focus-visible {
 
 .auth-brand-name {
   margin: 0;
-  font-size: clamp(1.5rem, 3vw, 2.1rem);
-  font-weight: 700;
-  letter-spacing: .01em;
+  /* The script only ever appears large, where it stays legible. */
+  font-family: var(--font-script);
+  font-weight: 400;
+  font-size: clamp(2rem, 4vw, 2.9rem);
+  line-height: 1.2;
+  padding-bottom: .06em;
 }
 .auth-brand-slogan {
   margin: .35rem 0 0;
+  font-family: var(--font-display);
+  font-style: italic;
   font-size: 1rem;
   color: rgba(255, 255, 255, .85);
 }
