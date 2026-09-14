@@ -214,6 +214,7 @@ SALON_DB=/opt/salon/data/salon.db
 ADMIN_PASSWORD=choose-a-strong-password
 
 # SMS. Leave as log until a provider is chosen — see section 7.
+# log | http | twilio | telemach
 SMS_DRIVER=log
 #SMS_DLR_SECRET=long-random-value-for-delivery-receipts
 ```
@@ -558,6 +559,108 @@ TWILIO_AUTH_TOKEN=xxxxxxxx
 TWILIO_FROM=+386XXXXXXXX
 ```
 
+### Option D — Telemach SMS Kurir
+
+Telemach's own A2P service, and the one to pick if the salon is already a
+Telemach business customer. It is an option B in spirit — the server calls
+Telemach, no phone is involved — but it speaks SOAP over an endpoint secured
+with a client certificate, so it has its own driver rather than `SMS_HTTP_*`.
+
+```
+SMS_DRIVER=telemach
+TELEMACH_PFX=/opt/salon/secrets/telemach.p12
+TELEMACH_PASSPHRASE=the-passphrase-for-the-certificate
+TELEMACH_SENDER=Berni
+```
+
+The certificate may instead be given as a PEM pair, whichever form Telemach
+issues it in:
+
+```
+TELEMACH_CERT=/opt/salon/secrets/telemach.crt
+TELEMACH_KEY=/opt/salon/secrets/telemach.key
+```
+
+Keep it out of reach of everyone else — it is the credential that lets anyone
+send SMS on the salon's account and be billed for it:
+
+```bash
+sudo mkdir -p /opt/salon/secrets
+sudo chown root:salon /opt/salon/secrets
+sudo chmod 750 /opt/salon/secrets
+sudo chmod 640 /opt/salon/secrets/telemach.p12
+```
+
+**Two things must be arranged with Telemach before anything sends**, both fixed
+at contract time:
+
+- **a static IP address.** Access to KurirWS is restricted to the IP the server
+  calls from. A salon connection with a changing address will stop working the
+  day it changes — this is the practical reason to run on a VPS.
+- **the sender name**, registered in advance. Maximum 11 characters, so `Berni`
+  fits. Sending from an unregistered sender is refused.
+
+Optional, all with sensible defaults:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `TELEMACH_URL` | the production endpoint | override for testing |
+| `TELEMACH_APPID` | `kurir` | leave it unless Telemach says otherwise |
+| `TELEMACH_SCHEDULE` | `0` | `0` = any time; `1` = only 08:00–21:00 |
+| `TELEMACH_VALIDITY` | — | hours before an undelivered message expires |
+
+**`TELEMACH_SCHEDULE` is worth understanding.** Telemach's own default is
+schedule `1`, which refuses to send outside 08:00–21:00 — a reminder for an
+08:30 appointment would sit at Telemach until the morning and arrive after the
+customer was due. This app therefore sends `0` unless told otherwise. Set it to
+`1` only if the salon would rather never message anyone in the evening.
+
+Telemach accepts up to 640 characters in one request and splits them itself, so
+nothing needs concatenating — but it bills the same way everyone does, 160
+characters per message and only 70 once a single **š** appears. Leave
+*Pošiljaj brez šumnikov* ticked.
+
+#### Receipts from Kurir Notify
+
+Telemach's push-back service is called Kurir Notify. Ask for **JSON** on the
+form, give them the URL from the receipts section above, and the fields are
+already right — the driver stores its own `guid` with each message and Kurir
+Notify returns the same one:
+
+```
+SMS_DLR_SECRET=paste-the-random-output-here
+```
+
+Nothing else is needed. If you would rather be explicit, these are the built-in
+defaults for this driver:
+
+```
+SMS_DLR_ID_FIELD=SmsStatus.guid
+SMS_DLR_STATUS_FIELD=SmsStatus.deliveryStatus,SmsStatus.sendStatus
+SMS_DLR_DELIVERED=DELIVERED
+SMS_DLR_FAILED=EXPIRED,BLOCKED,SUBSCRIBER_UNKNOWN,ERROR
+```
+
+Two status fields are listed because a message that never got sent at all has
+no `deliveryStatus`; the second field then reports `ERROR` or `BLOCKED`.
+`NOT_DELIVERED` is deliberately treated as neither — it means Telemach is still
+trying, and becomes `EXPIRED` after three days if the phone never comes back.
+
+#### Testing before going live
+
+Ask for a **test access** on the form. The test `appid` behaves exactly like the
+production one except messages are not delivered to handsets, which is the safe
+way to confirm the certificate, the IP and the sender all work:
+
+```
+TELEMACH_APPID=the-test-appid-telemach-gives-you
+```
+
+Watch a message reach *Oddano prehodu* in SMS dnevnik, then swap back to
+`kurir`. A refusal never looks like a success: Telemach answers HTTP 200 even
+when it rejects a message, so the driver reads the status out of the response
+and the log shows the reason — `PARAMETER_ERROR`, `ACCESS_ERROR` and the rest.
+
 ### Delivery receipts — knowing a message actually arrived
 
 Without this, the best the app can say is *Oddano prehodu*: the gateway took the
@@ -605,20 +708,33 @@ never see *Dostavljeno*.
 | `SMS_BATCH` | `5` | messages sent per pass |
 | `SMS_REMINDER_TICK_MS` | `300000` | how often reminders are scanned |
 | `SMS_HISTORY_MONTHS` | `12` | how long finished messages are kept |
+| `SMS_HTTP_TIMEOUT_MS` | `10000` | give up on a silent gateway |
+| `SMS_COUNTRY_CODE` | `386` | country for local numbers |
 
 Sending without diacritics is a setting rather than a variable, because it is
 the salon's decision and it doubles or halves the bill: Nastavitve → *Pošiljaj
 brez šumnikov*.
-| `SMS_HTTP_TIMEOUT_MS` | `10000` | give up on a silent gateway |
-| `SMS_COUNTRY_CODE` | `386` | country for local numbers |
 
 ### Applying and testing
 
 ```bash
 sudo nano /etc/salon.env
 sudo systemctl restart salon        # required after any change here
-npm test                            # 725 checks, no provider needed
+npm test                            # the whole suite, no provider needed
 ```
+
+Then check the configuration itself, as the user the service runs as:
+
+```bash
+sudo -u salon SALON_DB=/opt/salon/data/salon.db \r
+  node /opt/salon/app/scripts/sms-check.js
+```
+
+It reports whether the certificate is readable by that user, the sender is a
+length the provider accepts, the receipt URL is right, the timezone is the
+salon's and anything is stuck in the outbox. Adding `--send 031331636` puts one
+real message through the whole path. **[GOLIVE.md](GOLIVE.md)** walks through the
+whole switch-on in order.
 
 Then tick the box in Nastavitve and book one appointment for a customer whose
 number is your own. Watch it move from *V vrsti* to *Oddano prehodu* in **SMS

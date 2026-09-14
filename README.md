@@ -22,8 +22,9 @@ example services, products and customers.
 | `SALON_DB` | Database file | `data/salon.db` |
 | `SESSION_SECRET` | Session cookie signing key | dev-only placeholder |
 | `ADMIN_PASSWORD` | First-run admin password | `admin123` |
-| `SMS_DRIVER` | `log`, `http` or `twilio` | `log` |
+| `SMS_DRIVER` | `log`, `http`, `twilio` or `telemach` | `log` |
 | `SMS_HTTP_URL` etc. | Gateway configuration for the `http` driver — see SETUP.md | — |
+| `TELEMACH_*` | Certificate and sender for Telemach SMS Kurir — see SETUP.md | — |
 | `SMS_COUNTRY_CODE` | Country code for local numbers, no plus | `386` |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM` | Twilio credentials | — |
 
@@ -31,10 +32,16 @@ example services, products and customers.
 login details, SMS, backups, updating and troubleshooting.
 `deploy/setup.sh` does a fresh Ubuntu server in one command.
 
+**[domain.md](domain.md)** covers getting a domain and making the app reachable
+from outside — including why a static *local* IP is not what an SMS provider
+whitelists. **[GOLIVE.md](GOLIVE.md)** is the ordered runbook for the day an SMS
+provider approves you.
+
 **Before using this anywhere real:** set `SESSION_SECRET` to a random value and
 change the admin password. The defaults exist only so the app runs out of the box.
 
-Other commands: `npm run dev` (auto-restart on file changes), `npm test`.
+Other commands: `npm run dev` (auto-restart on file changes), `npm test`,
+`npm run sms-check` (preflight: is everything in place for SMS to actually send).
 
 ## How it is put together
 
@@ -48,6 +55,7 @@ src/db.js              schema and connection
 src/settings.js        salon settings with defaults
 src/util.js            money, time, date, password and loyalty helpers
 src/sms.js             pluggable SMS driver and message templates
+scripts/sms-check.js   preflight for SMS configuration, and a test send
 src/middleware.js      auth, CSRF, flash messages, template locals
 src/calendar-view.js   time grid, overlap lane layout, date ranges
 src/repo/              data access, one module per table
@@ -92,17 +100,17 @@ modal, customer search, drag-and-drop, and the +/- counters — are handled by
 
 ```
 npm test          # both suites
-npm run test:sms  # SMS only: number conversion and the HTTP gateway
+npm run test:sms  # SMS only: number conversion, the HTTP gateway and Telemach
 npm run test:http # the HTTP suite only
 ```
 
-`tests/sms.js` runs 36 checks: local-to-E.164 conversion, and the generic HTTP
-driver against a fake gateway that captures exactly what a real provider would
-receive — authentication headers, body format, escaping, timeouts, and the
-failure paths.
+`tests/sms.js` runs 140 checks: local-to-E.164 conversion, the generic HTTP
+driver and the Telemach SOAP driver against fake gateways that capture exactly
+what a real provider would receive — authentication headers, body format,
+escaping, timeouts, delivery receipts and the failure paths.
 
 The HTTP suite starts the app on a spare port against a throwaway database and runs
-`tests/e2e.js` over HTTP — 275 checks covering the public site, login and roles,
+`tests/e2e.js` over HTTP — 330 checks covering the public site, login and roles,
 the three calendar views, conflict rules, the visit counter and loyalty
 threshold, settings validation, SMS outcomes, services, products, employees,
 escaping and CSRF. The runner also fails the build if any route logs a stack
