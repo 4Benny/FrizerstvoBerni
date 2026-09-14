@@ -4,6 +4,10 @@ const { db } = require('./db');
 const settings = require('./settings');
 const util = require('./util');
 const appointments = require('./repo/appointments');
+const https = require('https');
+const http = require('http');
+const fs = require('fs');
+const crypto = require('crypto');
 
 /**
  * SMS is deliberately pluggable. Choose a driver with SMS_DRIVER:
@@ -13,6 +17,7 @@ const appointments = require('./repo/appointments');
  *   http    posts to any gateway that accepts an HTTP request — a Slovenian
  *           A2P provider, or a phone running an SMS-gateway app in cloud mode
  *   twilio  Twilio's REST API
+ *   telemach Telemach's SMS Kurir (SOAP, client certificate, static IP)
  *
  * Nothing is sent from the request that saved the appointment. Messages go into
  * an outbox table and a background worker delivers them, which keeps the front
@@ -342,6 +347,213 @@ async function deliverHttp(phone, body) {
   return { providerId: extractProviderId(text, process.env.SMS_HTTP_ID_PATH) };
 }
 
+/* ------------------------------------------------ Telemach SMS Kurir --- */
+
+const TELEMACH_URL =
+  'https://customer.telemach.si/service/KurirWS/KurirService2';
+
+/** Escape a value for XML, safe in both element text and attribute values. */
+function xmlEscape(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function xmlUnescape(value) {
+  return String(value)
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+
+/** Read one attribute off a captured element tag, either quoting style. */
+function xmlAttr(tag, name) {
+  const match = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i').exec(tag);
+  if (!match) return '';
+  return xmlUnescape(match[1] !== undefined ? match[1] : match[2]);
+}
+
+/**
+ * The client certificate Telemach issues at contract signature. Read once —
+ * a renewed certificate needs a restart, like every other credential here.
+ * A failed read is not cached, so a corrected path works on the next retry.
+ */
+let telemachTls = null;
+function telemachCredentials() {
+  if (telemachTls) return telemachTls;
+
+  const tls = {};
+  if (process.env.TELEMACH_PFX) {
+    tls.pfx = fs.readFileSync(process.env.TELEMACH_PFX);
+  } else if (process.env.TELEMACH_CERT || process.env.TELEMACH_KEY) {
+    if (!process.env.TELEMACH_CERT || !process.env.TELEMACH_KEY) {
+      throw new Error('TELEMACH_CERT in TELEMACH_KEY morata biti nastavljena skupaj');
+    }
+    tls.cert = fs.readFileSync(process.env.TELEMACH_CERT);
+    tls.key = fs.readFileSync(process.env.TELEMACH_KEY);
+  } else {
+    throw new Error(
+      'Odjemalski certifikat ni nastavljen (TELEMACH_PFX ali TELEMACH_CERT in TELEMACH_KEY)'
+    );
+  }
+  if (process.env.TELEMACH_PASSPHRASE) tls.passphrase = process.env.TELEMACH_PASSPHRASE;
+  if (process.env.TELEMACH_CA) tls.ca = fs.readFileSync(process.env.TELEMACH_CA);
+
+  telemachTls = tls;
+  return tls;
+}
+
+/**
+ * POST a SOAP envelope. fetch() cannot present a client certificate, so this
+ * goes through https.request. Plain http is accepted too, which is what the
+ * tests point at — the certificate is only attached to an https endpoint.
+ */
+function postSoap(endpoint, envelope, timeoutMs) {
+  const target = new URL(endpoint);
+  const secure = target.protocol === 'https:';
+  const transport = secure ? https : http;
+  const payload = Buffer.from(envelope, 'utf8');
+
+  const options = {
+    method: 'POST',
+    hostname: target.hostname,
+    port: target.port || (secure ? 443 : 80),
+    path: target.pathname + target.search,
+    headers: {
+      'Content-Type': 'text/xml; charset=utf-8',
+      'Content-Length': payload.length,
+      SOAPAction: process.env.TELEMACH_SOAP_ACTION || '""',
+      Accept: 'text/xml',
+    },
+    timeout: timeoutMs,
+  };
+  if (secure) Object.assign(options, telemachCredentials());
+
+  return new Promise((resolve, reject) => {
+    const req = transport.request(options, (res) => {
+      let text = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { text += chunk; });
+      res.on('end', () => resolve({ status: res.statusCode, text }));
+    });
+    req.on('timeout', () => req.destroy(new Error('Telemach se ni odzval pravočasno')));
+    req.on('error', reject);
+    req.end(payload);
+  });
+}
+
+/**
+ * KurirWS answers HTTP 200 even when it refuses the message — the real outcome
+ * is the status attribute on <Response> and <SendSmsResponse>. Reading only the
+ * HTTP code would file a rejected message as accepted, and the salon would
+ * believe a customer had been told about their appointment.
+ */
+function telemachOutcome(xml) {
+  const fault =
+    /<(?:\w+:)?Fault\b[\s\S]*?<faultstring[^>]*>([\s\S]*?)<\/(?:\w+:)?faultstring>/i.exec(xml);
+  if (fault) return { ok: false, status: 'SOAP_FAULT', error: xmlUnescape(fault[1]).trim() };
+
+  const tags = xml.match(/<(?:\w+:)?(?:Response|SendSmsResponse)\b[^>]*>/gi) || [];
+  if (!tags.length) {
+    return { ok: false, status: 'NEZNAN_ODGOVOR', error: xml.trim().slice(0, 200) };
+  }
+
+  for (const tag of tags) {
+    const status = xmlAttr(tag, 'status');
+    if (status && status.toUpperCase() !== 'OK') {
+      return { ok: false, status, error: xmlAttr(tag, 'error') };
+    }
+  }
+  return { ok: true, status: 'OK', error: '' };
+}
+
+/**
+ * Telemach's SMS Kurir. SOAP over an endpoint secured with an SSL client
+ * certificate and restricted to a static IP, so it cannot go through the
+ * generic `http` driver — that one builds JSON or form bodies with fetch.
+ *
+ *   TELEMACH_URL        endpoint, defaults to the production one
+ *   TELEMACH_PFX        client certificate as PKCS#12, or:
+ *   TELEMACH_CERT/_KEY  the same certificate as a PEM pair
+ *   TELEMACH_PASSPHRASE passphrase, if the certificate carries one
+ *   TELEMACH_SENDER     registered sender, 11 characters at most
+ *   TELEMACH_APPID      'kurir' unless Telemach says otherwise
+ *   TELEMACH_SCHEDULE   0 = no time limit (the default here)
+ *   TELEMACH_VALIDITY   hours before an undelivered message expires
+ *   TELEMACH_BCODE/_BCONTENT  only for charged messages; a salon has none
+ *
+ * The guid is generated here rather than read back out of the response, and
+ * stored as the message's provider id: a Kurir Notify receipt carries the same
+ * guid, so delivery can be matched without parsing SOAP a second time.
+ */
+async function deliverTelemach(phone, body) {
+  const sender = process.env.TELEMACH_SENDER || process.env.SMS_SENDER || '';
+  if (!sender) throw new Error('TELEMACH_SENDER ni nastavljen');
+  // Telemach rejects a longer sender outright; catching it here keeps the
+  // reason readable instead of a bare PARAMETER_ERROR.
+  if (sender.length > 11) {
+    throw new Error(`Pošiljatelj "${sender}" je daljši od 11 znakov`);
+  }
+
+  // Kurir wants the international form without the plus: 38631331636. The
+  // outbox already holds E.164, but normalising again here means the driver
+  // cannot be handed a local number and quietly address it to 031331636.
+  const recipient = String(toE164(phone) || '').replace(/\D/g, '');
+  if (!recipient) throw new Error('Neveljavna telefonska številka');
+
+  const guid = crypto.randomUUID();
+  const attrs = [
+    `guid="${xmlEscape(guid)}"`,
+    `sender="${xmlEscape(sender)}"`,
+    `recipient="${xmlEscape(recipient)}"`,
+    `appid="${xmlEscape(process.env.TELEMACH_APPID || 'kurir')}"`,
+    // Telemach's own default is schedule 1, which refuses to send outside
+    // 08:00-21:00 — that would hold back an early reminder until the morning.
+    `schedule="${xmlEscape(process.env.TELEMACH_SCHEDULE || '0')}"`,
+  ];
+  if (process.env.TELEMACH_VALIDITY) {
+    attrs.push(`validity="${xmlEscape(process.env.TELEMACH_VALIDITY)}"`);
+  }
+  if (process.env.TELEMACH_BCODE) {
+    attrs.push(`bcode="${xmlEscape(process.env.TELEMACH_BCODE)}"`);
+  }
+  if (process.env.TELEMACH_BCONTENT) {
+    attrs.push(`bcontent="${xmlEscape(process.env.TELEMACH_BCONTENT)}"`);
+  }
+
+  const envelope =
+    '<?xml version="1.0" encoding="UTF-8"?>' +
+    '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"' +
+    ' xmlns:kur="http://webservices.tusmobil.si/kurir">' +
+    '<soapenv:Header/><soapenv:Body><kur:Kurir><Request>' +
+    `<SendSms ${attrs.join(' ')}>${xmlEscape(body)}</SendSms>` +
+    '</Request></kur:Kurir></soapenv:Body></soapenv:Envelope>';
+
+  const timeoutMs = Number(process.env.SMS_HTTP_TIMEOUT_MS) || 10000;
+  const res = await postSoap(
+    process.env.TELEMACH_URL || TELEMACH_URL,
+    envelope,
+    timeoutMs
+  );
+
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(`Telemach je odgovoril ${res.status}: ${res.text.slice(0, 200)}`);
+  }
+
+  const outcome = telemachOutcome(res.text);
+  if (!outcome.ok) {
+    const detail = outcome.error ? ` — ${outcome.error}` : '';
+    throw new Error(`Telemach: ${outcome.status}${detail}`.slice(0, 500));
+  }
+
+  return { providerId: guid };
+}
+
 async function deliverTwilio(phone, body) {
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
@@ -374,6 +586,7 @@ async function deliverTwilio(phone, body) {
 }
 
 async function deliver(phone, body) {
+  if (DRIVER === 'telemach') return deliverTelemach(phone, body);
   if (DRIVER === 'twilio') return deliverTwilio(phone, body);
   if (DRIVER === 'http') return deliverHttp(phone, body);
   return deliverLog(phone, body);
@@ -645,11 +858,30 @@ function scanReminders({ now = new Date() } = {}) {
 
 /* ------------------------------------------------------- delivery receipts */
 
+/**
+ * Where each gateway puts the id and the status in a receipt. Telemach nests
+ * everything under SmsStatus and reports delivery separately from sending, so
+ * it names two status fields: deliveryStatus is the final word, sendStatus the
+ * fallback for a message that never got as far as being sent.
+ */
+const DLR_PRESETS = {
+  twilio: { idField: 'MessageSid', statusField: 'MessageStatus' },
+  telemach: {
+    idField: 'SmsStatus.guid',
+    statusField: 'SmsStatus.deliveryStatus,SmsStatus.sendStatus',
+  },
+};
+
 const DLR_DEFAULTS = {
-  idField: DRIVER === 'twilio' ? 'MessageSid' : 'id',
-  statusField: DRIVER === 'twilio' ? 'MessageStatus' : 'status',
+  idField: 'id',
+  statusField: 'status',
   delivered: 'delivered,DELIVERED,delivrd,DELIVRD,DELIVERED_TO_HANDSET',
-  failed: 'undelivered,UNDELIVERED,failed,FAILED,rejected,REJECTED,expired,EXPIRED',
+  // Telemach's NOT_DELIVERED is deliberately absent: it means "still trying",
+  // and it becomes EXPIRED after three days if it never arrives.
+  failed:
+    'undelivered,UNDELIVERED,failed,FAILED,rejected,REJECTED,expired,EXPIRED,' +
+    'error,ERROR,blocked,BLOCKED,subscriber_unknown,SUBSCRIBER_UNKNOWN',
+  ...(DLR_PRESETS[DRIVER] || {}),
 };
 
 function dlrList(value) {
@@ -678,7 +910,15 @@ function applyReceipt(payload) {
   const idField = process.env.SMS_DLR_ID_FIELD || DLR_DEFAULTS.idField;
   const statusField = process.env.SMS_DLR_STATUS_FIELD || DLR_DEFAULTS.statusField;
   const providerId = String(dig(payload, idField) ?? '').trim();
-  const reported = String(dig(payload, statusField) ?? '').trim();
+
+  // A comma-separated statusField is read in order and the first field that
+  // actually carries a value wins, so one receipt shape can cover a gateway
+  // that reports delivery and sending in different places.
+  let reported = '';
+  for (const field of String(statusField).split(',')) {
+    const value = String(dig(payload, field.trim()) ?? '').trim();
+    if (value) { reported = value; break; }
+  }
 
   if (!providerId) return { ok: false, error: `Manjka polje ${idField}.` };
   if (!reported) return { ok: false, error: `Manjka polje ${statusField}.` };
@@ -939,6 +1179,9 @@ module.exports = {
   startWorker,
   stopWorker,
   // exported for tests
+  deliverTelemach,
+  telemachOutcome,
+  xmlEscape,
   renderForm,
   renderJson,
   appointmentStart,

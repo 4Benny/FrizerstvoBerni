@@ -3,7 +3,8 @@
  * SMS tests: number normalisation, the generic HTTP driver against a fake
  * gateway that captures exactly what the app would send to a real provider,
  * and the outbox — queueing, retry with backoff, giving up, reminders,
- * delivery receipts and the log screen's queries.
+ * delivery receipts and the log screen's queries, plus Telemach's SMS Kurir
+ * driver against a fake KurirWS.
  *
  *   node tests/sms.js
  */
@@ -516,6 +517,198 @@ section('messages are kept inside a single SMS');
   // Cleaned up so the counts below are not thrown off.
   db.prepare('DELETE FROM sms_log WHERE id IN (?, ?, ?, ?)')
     .run(justInside, recent, stillRetrying, oldFailed);
+
+  section('Telemach SMS Kurir');
+
+  // A stand-in for KurirWS: it records the envelope and answers the way the
+  // real one does — HTTP 200 whether it accepted the message or refused it.
+  const soapCalls = [];
+  const kurir = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      soapCalls.push({
+        contentType: req.headers['content-type'],
+        soapAction: req.headers.soapaction,
+        body,
+      });
+      const guid = (/guid="([^"]*)"/.exec(body) || [])[1] || '';
+      let answer;
+      if (req.url === '/refused') {
+        answer =
+          '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>' +
+          '<ns2:KurirResponse xmlns:ns2="http://webservices.tusmobil.si/kurir">' +
+          `<Response guid="${guid}" status="PARAMETER_ERROR" error="Invalid bcode format">` +
+          `<SendSmsResponse guid="${guid}" status="PARAMETER_ERROR" error="Invalid bcode format"/>` +
+          '</Response></ns2:KurirResponse></soap:Body></soap:Envelope>';
+      } else if (req.url === '/fault') {
+        answer =
+          '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>' +
+          '<soap:Fault><faultcode>soap:Server</faultcode>' +
+          '<faultstring>Access denied</faultstring></soap:Fault>' +
+          '</soap:Body></soap:Envelope>';
+      } else {
+        answer =
+          '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>' +
+          '<ns2:KurirResponse xmlns:ns2="http://webservices.tusmobil.si/kurir">' +
+          `<Response guid="${guid}" status="OK">` +
+          `<SendSmsResponse guid="${guid}" status="OK" sender="Berni" queue="sms_queue_fast"/>` +
+          '</Response></ns2:KurirResponse></soap:Body></soap:Envelope>';
+      }
+      res.writeHead(200, { 'Content-Type': 'text/xml' });
+      res.end(answer);
+    });
+  });
+  await new Promise((r) => kurir.listen(0, '127.0.0.1', r));
+  const kurirBase = `http://127.0.0.1:${kurir.address().port}`;
+
+  process.env.TELEMACH_URL = `${kurirBase}/send`;
+  process.env.TELEMACH_SENDER = 'Berni';
+
+  {
+    const out = await sms.deliverTelemach('+38631331636', 'Pozdravljeni Ana, naroceni ste');
+    const sent = soapCalls[soapCalls.length - 1];
+
+    ok('the envelope is sent as XML', /text\/xml/.test(sent.contentType), sent.contentType);
+    ok('a SOAPAction header is present', sent.soapAction !== undefined, sent.soapAction);
+    ok('the recipient loses the plus', /recipient="38631331636"/.test(sent.body), sent.body);
+    ok('the registered sender is used', /sender="Berni"/.test(sent.body));
+    ok('appid defaults to kurir', /appid="kurir"/.test(sent.body));
+    ok('schedule defaults to 0, not Telemach\'s 8am-9pm window',
+      /schedule="0"/.test(sent.body), sent.body);
+    ok('the message text is the element body',
+      /<SendSms[^>]*>Pozdravljeni Ana, naroceni ste<\/SendSms>/.test(sent.body), sent.body);
+    ok('no billing code is sent when none is configured', !/bcode=/.test(sent.body));
+    ok('the guid is returned as the provider id',
+      !!out.providerId && sent.body.includes(`guid="${out.providerId}"`), out.providerId);
+  }
+
+  {
+    // The salon really has a service called "Barvanje & striženje"; an
+    // unescaped ampersand would make the envelope unparseable at Telemach.
+    await sms.deliverTelemach('031 331 636', 'Barvanje & striženje <1> "termin"');
+    const sent = soapCalls[soapCalls.length - 1];
+    ok('an ampersand in the text is escaped', /Barvanje &amp; stri/.test(sent.body), sent.body);
+    ok('angle brackets in the text are escaped',
+      /&lt;1&gt;/.test(sent.body) && !/<1>/.test(sent.body), sent.body);
+    ok('the envelope has no stray unescaped entity',
+      !/&(?!amp;|lt;|gt;|quot;|apos;)/.test(sent.body), sent.body);
+    ok('a local number is still normalised', /recipient="38631331636"/.test(sent.body), sent.body);
+  }
+
+  {
+    let threw = '';
+    process.env.TELEMACH_URL = `${kurirBase}/refused`;
+    try { await sms.deliverTelemach('+38631331636', 'Test'); } catch (e) { threw = e.message; }
+    ok('a refusal inside a 200 response is an error, not an accepted message',
+      /PARAMETER_ERROR/.test(threw), threw);
+    ok('the reason from Telemach is kept', /Invalid bcode format/.test(threw), threw);
+  }
+
+  {
+    let threw = '';
+    process.env.TELEMACH_URL = `${kurirBase}/fault`;
+    try { await sms.deliverTelemach('+38631331636', 'Test'); } catch (e) { threw = e.message; }
+    ok('a SOAP fault is an error', /Access denied/.test(threw), threw);
+  }
+
+  {
+    process.env.TELEMACH_URL = `${kurirBase}/send`;
+    process.env.TELEMACH_SENDER = 'PredolgoIme';
+    process.env.TELEMACH_SCHEDULE = '1';
+    let threw = '';
+    try { await sms.deliverTelemach('+38631331636', 'Test'); } catch (e) { threw = e.message; }
+    ok('a sender of exactly 11 characters is accepted', threw === '', threw);
+
+    process.env.TELEMACH_SENDER = 'PredolgoImeX';
+    threw = '';
+    try { await sms.deliverTelemach('+38631331636', 'Test'); } catch (e) { threw = e.message; }
+    ok('a sender of 12 characters is refused before sending',
+      /daljši od 11/.test(threw), threw);
+
+    process.env.TELEMACH_SENDER = 'Berni';
+    await sms.deliverTelemach('+38631331636', 'Test');
+    ok('the schedule can be set back to Telemach\'s window',
+      /schedule="1"/.test(soapCalls[soapCalls.length - 1].body));
+    delete process.env.TELEMACH_SCHEDULE;
+  }
+
+  {
+    let threw = '';
+    try { await sms.deliverTelemach('ni telefona', 'Test'); } catch (e) { threw = e.message; }
+    ok('a number with no digits never reaches the gateway',
+      /telefonska/.test(threw), threw);
+  }
+
+  ok('the outcome reader accepts a plain OK',
+    sms.telemachOutcome('<Response guid="1" status="OK"/>').ok);
+  ok('the outcome reader catches a per-message refusal the envelope hid',
+    sms.telemachOutcome(
+      '<Response status="OK"><SendSmsResponse status="ACCESS_ERROR" error="Denied"/></Response>'
+    ).ok === false);
+  ok('an unrecognisable response is an error, not a success',
+    sms.telemachOutcome('nekaj popolnoma drugega').ok === false);
+
+  section('Kurir Notify receipts');
+
+  // Kurir Notify nests everything under SmsStatus and names two status fields.
+  process.env.SMS_DLR_ID_FIELD = 'SmsStatus.guid';
+  process.env.SMS_DLR_STATUS_FIELD = 'SmsStatus.deliveryStatus,SmsStatus.sendStatus';
+  process.env.SMS_DLR_DELIVERED = 'DELIVERED';
+  process.env.SMS_DLR_FAILED = 'EXPIRED,BLOCKED,SUBSCRIBER_UNKNOWN,ERROR';
+
+  /** Give an existing log row a known guid, the way a real send would. */
+  function rowWithGuid(guid) {
+    const row = sms.list({ limit: 1 })[0];
+    db.prepare('UPDATE sms_log SET provider_id = ?, status = ? WHERE id = ?')
+      .run(guid, 'accepted', row.id);
+    return row.id;
+  }
+
+  {
+    const id = rowWithGuid('GUID-DELIVERED');
+    const out = sms.applyReceipt({
+      SmsStatus: {
+        messageId: 'SA777888999444',
+        guid: 'GUID-DELIVERED',
+        recipient: '38631331636',
+        sendStatus: 'SENT',
+        deliveryStatus: 'DELIVERED',
+        deliveryTime: '30.01.2019 12:32:06',
+      },
+    });
+    ok('a nested Kurir Notify receipt is matched by guid', out.status === 'delivered', out);
+    ok('the row is marked delivered', sms.get(id).status === 'delivered', sms.get(id).status);
+  }
+
+  {
+    const id = rowWithGuid('GUID-EXPIRED');
+    sms.applyReceipt({ SmsStatus: { guid: 'GUID-EXPIRED', deliveryStatus: 'EXPIRED' } });
+    ok('an expired message is marked undelivered',
+      sms.get(id).status === 'undelivered', sms.get(id).status);
+  }
+
+  {
+    // A message that failed at sending has no deliveryStatus at all, so the
+    // second configured field is what saves it from being left as accepted.
+    const id = rowWithGuid('GUID-SENDERROR');
+    sms.applyReceipt({ SmsStatus: { guid: 'GUID-SENDERROR', sendStatus: 'ERROR' } });
+    ok('a send error falls through to the second status field',
+      sms.get(id).status === 'undelivered', sms.get(id).status);
+  }
+
+  {
+    const id = rowWithGuid('GUID-WAITING');
+    sms.applyReceipt({ SmsStatus: { guid: 'GUID-WAITING', deliveryStatus: 'NOT_DELIVERED' } });
+    ok('NOT_DELIVERED means still trying, so the row is left alone',
+      sms.get(id).status === 'accepted', sms.get(id).status);
+  }
+
+  for (const name of [
+    'SMS_DLR_ID_FIELD', 'SMS_DLR_STATUS_FIELD', 'SMS_DLR_DELIVERED', 'SMS_DLR_FAILED',
+  ]) delete process.env[name];
+
+  await new Promise((resolve) => kurir.close(resolve));
 
   section('the log screen queries');
 
