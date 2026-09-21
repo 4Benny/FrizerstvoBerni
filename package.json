@@ -11,6 +11,7 @@
     "test": "node tests/migration.js && node tests/loyalty.js && node tests/availability.js && node tests/booking.js && node tests/products.js && node tests/pdf.js && node tests/sms.js && node tests/run.js",
     "test:http": "node tests/run.js",
     "test:sms": "node tests/sms.js",
+    "sms-check": "node scripts/sms-check.js",
     "accounts": "node scripts/reset-password.js --list",
     "reset-password": "node scripts/reset-password.js",
     "test:migration": "node tests/migration.js",
