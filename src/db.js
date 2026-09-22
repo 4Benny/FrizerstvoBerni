@@ -202,6 +202,9 @@ addColumn('sms_log', 'attempts', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('sms_log', 'next_attempt_at', "TEXT NOT NULL DEFAULT ''");
 addColumn('sms_log', 'provider_id', "TEXT NOT NULL DEFAULT ''");
 addColumn('sms_log', 'updated_at', "TEXT NOT NULL DEFAULT ''");
+// The price list on the website carries a sentence under each service. The
+// category still lives in `description`; this is the service's own wording.
+addColumn('services', 'details', "TEXT NOT NULL DEFAULT ''");
 
 db.exec(`
 CREATE INDEX IF NOT EXISTS idx_sms_due       ON sms_log(status, next_attempt_at);

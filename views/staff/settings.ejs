@@ -15,9 +15,22 @@
       <input id="salon_name" name="salon_name" type="text" required value="<%= values.salon_name %>">
     </div>
     <div class="field">
+      <label for="hero_heading">Naslov na vrhu spletne strani</label>
+      <input id="hero_heading" name="hero_heading" type="text" value="<%= values.hero_heading %>"
+             placeholder="Frizerski salon v Slovenj Gradcu, z vami že od leta 2008.">
+      <p class="hint">Velik napis na vrhu. Če je prazno, se izpiše ime salona.</p>
+    </div>
+    <div class="field">
       <label for="slogan">Kratek slogan</label>
       <input id="slogan" name="slogan" type="text" value="<%= values.slogan %>"
              placeholder="Frizerske storitve">
+      <p class="hint">Stavek pod naslovom.</p>
+    </div>
+    <div class="field">
+      <label for="legal_name">Naziv podjetja</label>
+      <input id="legal_name" name="legal_name" type="text" value="<%= values.legal_name %>"
+             placeholder="Bernarda Hrovat s.p.">
+      <p class="hint">Za vrstico z avtorskimi pravicami v nogi. Če je prazno, se izpiše ime salona.</p>
     </div>
     <div class="field">
       <label for="about">Predstavitev</label>
@@ -38,14 +51,94 @@
         <p class="hint">Neobvezna okrogla slika na spletni strani.</p>
       </div>
     </div>
-    <% if (values.logo_url || values.emblem_url) { %>
+    <div class="field">
+      <label for="hero_image_url">Velika slika na vrhu strani</label>
+      <input id="hero_image_url" name="hero_image_url" type="text" value="<%= values.hero_image_url %>"
+             placeholder="/img/salon.jpg">
+      <p class="hint">
+        Datoteko naložite v mapo <code>public/img/</code> in tukaj vpišite pot, na primer
+        <code>/img/salon.jpg</code>. Deluje tudi povezava do slike na spletu. Če je prazno, se
+        pokaže znak.
+      </p>
+    </div>
+    <% if (values.logo_url || values.emblem_url || values.hero_image_url) { %>
       <div class="logo-preview">
         <% if (values.logo_url) { %><img src="<%= values.logo_url %>" alt="Predogled logotipa"><% } %>
         <% if (values.emblem_url) { %>
           <img class="is-round" src="<%= values.emblem_url %>" alt="Predogled znaka">
         <% } %>
+        <% if (values.hero_image_url) { %>
+          <img src="<%= values.hero_image_url %>" alt="Predogled slike na vrhu strani">
+        <% } %>
       </div>
     <% } %>
+  </section>
+
+  <section class="card form">
+    <h2>Poudarki na spletni strani</h2>
+    <p class="page-sub">
+      Štirje kratki poudarki pod naslovom — na primer naročanje, izkušnje, parkirišče ali
+      izdelki, ki jih uporabljate. Poudarek brez naslova se na strani ne pokaže.
+    </p>
+    <% [1, 2, 3, 4].forEach(function (n) { %>
+      <div class="form-row">
+        <div class="field">
+          <label for="highlight_<%= n %>_title">Naslov <%= n %></label>
+          <input id="highlight_<%= n %>_title" name="highlight_<%= n %>_title" type="text"
+                 value="<%= values['highlight_' + n + '_title'] %>"
+                 placeholder="<%= n === 1 ? 'Brezplačno parkirišče' : '' %>">
+        </div>
+        <div class="field">
+          <label for="highlight_<%= n %>_text">Besedilo <%= n %></label>
+          <input id="highlight_<%= n %>_text" name="highlight_<%= n %>_text" type="text"
+                 value="<%= values['highlight_' + n + '_text'] %>"
+                 placeholder="<%= n === 1 ? 'Salon je v neposredni bližini dvorane Vinka Cajnka.' : '' %>">
+        </div>
+      </div>
+    <% }); %>
+  </section>
+
+  <section class="card form">
+    <h2>Predstavitev storitev</h2>
+    <p class="page-sub">
+      Trije predstavitveni bloki nad cenikom. Kartica brez naslova se ne pokaže; če so prazni
+      vsi trije, spletna stran sama sestavi kartice iz skupin v ceniku.
+    </p>
+    <% [1, 2, 3].forEach(function (n) { %>
+      <div class="field">
+        <label for="service_card_<%= n %>_title">Naslov kartice <%= n %></label>
+        <input id="service_card_<%= n %>_title" name="service_card_<%= n %>_title" type="text"
+               value="<%= values['service_card_' + n + '_title'] %>"
+               placeholder="<%= n === 1 ? 'Striženje las' : '' %>">
+      </div>
+      <div class="field">
+        <label for="service_card_<%= n %>_text">Opis kartice <%= n %></label>
+        <textarea id="service_card_<%= n %>_text" name="service_card_<%= n %>_text"
+                  rows="2"><%= values['service_card_' + n + '_text'] %></textarea>
+      </div>
+      <div class="field">
+        <label for="service_card_<%= n %>_points">Alineje kartice <%= n %></label>
+        <textarea id="service_card_<%= n %>_points" name="service_card_<%= n %>_points"
+                  rows="3"><%= values['service_card_' + n + '_points'] %></textarea>
+        <p class="hint">Ena alineja na vrstico.</p>
+      </div>
+      <div class="field">
+        <label for="service_card_<%= n %>_image">Slika kartice <%= n %></label>
+        <input id="service_card_<%= n %>_image" name="service_card_<%= n %>_image" type="text"
+               value="<%= values['service_card_' + n + '_image'] %>"
+               placeholder="/img/strizenje.jpg">
+        <p class="hint">
+          Pot do datoteke v mapi <code>public/img/</code> ali povezava do slike. Če je prazno,
+          se pokaže znak v barvi salona.
+        </p>
+        <% if (values['service_card_' + n + '_image']) { %>
+          <div class="logo-preview">
+            <img src="<%= values['service_card_' + n + '_image'] %>" alt="Predogled slike kartice <%= n %>">
+          </div>
+        <% } %>
+      </div>
+      <% if (n < 3) { %><hr><% } %>
+    <% }); %>
   </section>
 
   <section class="card form">

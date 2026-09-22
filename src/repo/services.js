@@ -23,12 +23,13 @@ function create(data) {
   const info = db
     .prepare(
       `INSERT INTO services
-         (name, description, duration_min, price_cents, active, sort_order, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+         (name, description, details, duration_min, price_cents, active, sort_order, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       util.str(data.name, 120),
       util.str(data.description, 1000),
+      util.str(data.details, 1000),
       Math.max(5, Number(data.duration_min) || 30),
       Math.max(0, Number(data.price_cents) || 0),
       util.boolInt(data.active),
@@ -41,12 +42,13 @@ function create(data) {
 function update(id, data) {
   db.prepare(
     `UPDATE services SET
-       name = ?, description = ?, duration_min = ?, price_cents = ?,
+       name = ?, description = ?, details = ?, duration_min = ?, price_cents = ?,
        active = ?, sort_order = ?
      WHERE id = ?`
   ).run(
     util.str(data.name, 120),
     util.str(data.description, 1000),
+    util.str(data.details, 1000),
     Math.max(5, Number(data.duration_min) || 30),
     Math.max(0, Number(data.price_cents) || 0),
     util.boolInt(data.active),

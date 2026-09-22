@@ -6,7 +6,13 @@ const { db } = require('./db');
 // website and the calendar read these instead of hard-coding salon details.
 const DEFAULTS = {
   salon_name: 'Frizerstvo Berni',
+  // The big line at the top of the website. Empty falls back to the salon name,
+  // which is what a salon without its own sentence wants.
+  hero_heading: '',
   slogan: 'Frizerske storitve',
+  // The registered business, for the copyright line. Empty falls back to the
+  // salon name.
+  legal_name: '',
   address: '',
   city: '',
   phone: '',
@@ -21,6 +27,39 @@ const DEFAULTS = {
   // files ship with the app: the script wordmark and the round emblem.
   logo_url: '/img/logo.png',
   emblem_url: '/img/emblem.jpg',
+  // Large picture beside the heading on the website. Empty falls back to the
+  // emblem, so the page never has an empty frame.
+  hero_image_url: '',
+
+  /* --------------------------------------------------------- website copy */
+  // The four short selling points under the heading, and the three service
+  // cards below them. Nothing in the database can say what a salon is proud of
+  // or how it describes a group of services, so the salon writes these itself
+  // in Nastavitve. A card with an empty title is left off the page entirely,
+  // which is why these all start blank.
+  highlight_1_title: '',
+  highlight_1_text: '',
+  highlight_2_title: '',
+  highlight_2_text: '',
+  highlight_3_title: '',
+  highlight_3_text: '',
+  highlight_4_title: '',
+  highlight_4_text: '',
+  // Each card: a heading, a paragraph, one bullet per line, and a picture.
+  // With every title empty the website falls back to cards generated from the
+  // service categories, so the section still works untouched.
+  service_card_1_title: '',
+  service_card_1_text: '',
+  service_card_1_points: '',
+  service_card_1_image: '',
+  service_card_2_title: '',
+  service_card_2_text: '',
+  service_card_2_points: '',
+  service_card_2_image: '',
+  service_card_3_title: '',
+  service_card_3_text: '',
+  service_card_3_points: '',
+  service_card_3_image: '',
   // Each weekday has a mode: 'open' (fixed times), 'closed', or 'text' (free
   // wording such as "Po dogovoru" shown in place of the times).
   opening_hours: JSON.stringify({
