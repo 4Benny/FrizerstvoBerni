@@ -18,6 +18,7 @@ TIMEZONE="${TIMEZONE:-Europe/Ljubljana}"
 BRANCH="${BRANCH:-main}"
 APP_DIR="/opt/salon/app"
 DATA_DIR="/opt/salon/data"
+SECRETS_DIR="/opt/salon/secrets"
 ENV_FILE="/etc/salon.env"
 SERVICE="/etc/systemd/system/salon.service"
 NODE_MAJOR="24"
@@ -76,6 +77,10 @@ info "$(date)"
 say "Pripravljam sistemskega uporabnika in mape"
 id -u salon >/dev/null 2>&1 || adduser --system --group --home /opt/salon salon
 install -d -o salon -g salon /opt/salon "$DATA_DIR"
+# Sem gre potrdilo od Telemacha. Mapa mora obstajati že zdaj in pripadati
+# uporabniku salon, sicer potrdilo pristane v lasti roota in ga storitev na dan
+# vklopa ne more prebrati. 700, ker je notri zasebni ključ.
+install -d -o salon -g salon -m 700 "$SECRETS_DIR"
 
 # ---------------------------------------------------------------------- koda --
 
@@ -299,4 +304,5 @@ info "Dnevnik            : sudo journalctl -u salon -f"
 info "Ponovni zagon      : sudo systemctl restart salon"
 info "Nastavitve in SMS  : sudo nano ${ENV_FILE}"
 info "Baza (ena datoteka): ${DATA_DIR}/salon.db"
+info "Potrdilo Telemach  : ${SECRETS_DIR}/"
 info "Kopija zdaj        : sudo -u salon /usr/local/bin/salon-backup"
