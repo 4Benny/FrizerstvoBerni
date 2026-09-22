@@ -209,12 +209,25 @@ systemctl reload nginx
 
 # --------------------------------------------------------------- požarni zid --
 
+say "Nastavljam požarni zid"
+if ! command -v ufw >/dev/null 2>&1; then
+  apt-get install -y -qq ufw
+fi
+
 if command -v ufw >/dev/null 2>&1; then
-  say "Odpiram vrata za splet in SSH"
+  # Privzeto zaprto: ven vse, noter samo SSH in splet. Brez tega bi bila
+  # aplikacija dosegljiva tudi neposredno na vratih ${PORT}, mimo nginxa in TLS.
+  ufw default deny incoming >/dev/null 2>&1 || true
+  ufw default allow outgoing >/dev/null 2>&1 || true
   ufw allow OpenSSH >/dev/null 2>&1 || true
   ufw allow 'Nginx Full' >/dev/null 2>&1 || true
+  ufw deny "${PORT}" >/dev/null 2>&1 || true
   ufw --force enable >/dev/null 2>&1 || true
-  info "Vrata ${PORT} ostanejo zaprta od zunaj — dostop gre samo prek nginxa."
+  info "Odprta so samo vrata 22 (SSH), 80 in 443."
+  info "Vrata ${PORT} so zaprta, aplikacija posluša le na 127.0.0.1."
+else
+  warn "ufw ni na voljo — vrata ${PORT} zaprite sami."
+  warn "Aplikacija posluša samo na 127.0.0.1, zato od zunaj ni dosegljiva."
 fi
 
 # ------------------------------------------------------------------ potrdilo --

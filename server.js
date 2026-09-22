@@ -12,6 +12,10 @@ const productMoves = require('./src/repo/product-moves');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+// Nginx je edini, ki se pogovarja z aplikacijo, in teče na istem strežniku,
+// zato poslušamo samo na zanki. Vrata 3000 tako od zunaj sploh ne obstajajo,
+// ne glede na požarni zid. HOST=0.0.0.0 to odpre, če bi nginx kdaj tekel drugje.
+const HOST = process.env.HOST || '127.0.0.1';
 
 // Create the default admin and demo salon data on first run.
 bootstrap.ensureSeed();
@@ -86,8 +90,8 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Salon app running on http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Salon app running on http://localhost:${PORT} (${HOST})`);
   console.log(`  Public website : http://localhost:${PORT}/`);
   console.log(`  Staff login    : http://localhost:${PORT}/login`);
   // Deliver queued messages in the background from here on.
