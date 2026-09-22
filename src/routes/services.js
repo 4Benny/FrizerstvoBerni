@@ -22,6 +22,7 @@ function readForm(body) {
   return {
     name: util.str(body.name, 120),
     description: util.str(body.description, 1000),
+    details: util.str(body.details, 1000),
     duration_min: Number(body.duration_min),
     price_cents: util.parseMoney(body.price),
     active: util.boolInt(body.active),
@@ -43,7 +44,7 @@ router.get('/new', (req, res) => {
     title: 'Dodaj storitev',
     service: null,
     error: null,
-    values: { name: '', description: '', duration_min: 30, price: '', active: 1, sort_order: 0 },
+    values: { name: '', description: '', details: '', duration_min: 30, price: '', active: 1, sort_order: 0 },
   });
 });
 

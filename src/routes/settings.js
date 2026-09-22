@@ -9,22 +9,40 @@ const { requireLogin, requireAdmin, setFlash } = require('../middleware');
 const router = express.Router();
 router.use(requireLogin, requireAdmin);
 
-const TEXT_FIELDS = [
-  'salon_name',
-  'slogan',
-  'address',
-  'city',
-  'phone',
-  'email',
-  'about',
-  'instagram',
-  'facebook',
-  'other_link',
-  'other_link_label',
-  'map_url',
-  'logo_url',
-  'emblem_url',
-];
+// Every free-text setting the form posts, with the length it is cut to. The
+// generous ones are the paragraphs; everything else is a single line.
+const TEXT_FIELDS = {
+  salon_name: 300,
+  hero_heading: 300,
+  legal_name: 300,
+  slogan: 300,
+  address: 300,
+  city: 300,
+  phone: 300,
+  email: 300,
+  about: 4000,
+  instagram: 300,
+  facebook: 300,
+  other_link: 300,
+  other_link_label: 300,
+  map_url: 300,
+  logo_url: 300,
+  emblem_url: 300,
+  hero_image_url: 300,
+};
+
+// The website copy the salon writes itself: four selling points and three
+// service cards. Added here so the list above stays readable.
+for (const n of [1, 2, 3, 4]) {
+  TEXT_FIELDS[`highlight_${n}_title`] = 120;
+  TEXT_FIELDS[`highlight_${n}_text`] = 400;
+}
+for (const n of [1, 2, 3]) {
+  TEXT_FIELDS[`service_card_${n}_title`] = 120;
+  TEXT_FIELDS[`service_card_${n}_text`] = 600;
+  TEXT_FIELDS[`service_card_${n}_points`] = 600;
+  TEXT_FIELDS[`service_card_${n}_image`] = 300;
+}
 
 router.get('/', (req, res) => {
   res.render('staff/settings', {
@@ -39,8 +57,8 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const body = req.body;
   const updates = {};
-  for (const field of TEXT_FIELDS) {
-    updates[field] = util.str(body[field], field === 'about' ? 4000 : 300);
+  for (const [field, max] of Object.entries(TEXT_FIELDS)) {
+    updates[field] = util.str(body[field], max);
   }
 
   const start = util.parseTime(body.calendar_start);

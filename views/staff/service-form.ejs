@@ -21,6 +21,13 @@
     <p class="hint">Na spletni strani se storitve združijo po tem besedilu.</p>
   </div>
 
+  <div class="field">
+    <label for="details">Opis za cenik</label>
+    <input id="details" name="details" type="text" value="<%= values.details || '' %>"
+           placeholder="Umivanje las, moderno striženje, utrjevalec in sušenje las.">
+    <p class="hint">Stavek pod imenom storitve v ceniku na spletni strani. Če je prazno, se izpiše samo trajanje.</p>
+  </div>
+
   <div class="form-row">
     <div class="field">
       <label for="duration_min">Trajanje (minute) *</label>

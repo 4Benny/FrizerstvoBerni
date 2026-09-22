@@ -1,7 +1,16 @@
 </main>
 
 <footer class="site-foot">
-  <p>© <%= new Date().getFullYear() %> <%= settings.salon_name %></p>
+  <div class="padding-global"><div class="container-large"><div class="padding-section-medium">
+    <div class="site-foot_bottom" style="margin-top:0;padding-top:0;border-top:0">
+      <p>© <%= new Date().getFullYear() %> <%= settings.salon_name %></p>
+      <% if (settings.phone) { %>
+        <p><a href="tel:<%= settings.phone.replace(/\s/g, '') %>"><%= settings.phone %></a></p>
+      <% } %>
+    </div>
+  </div></div></div>
 </footer>
+
+</div>
 </body>
 </html>

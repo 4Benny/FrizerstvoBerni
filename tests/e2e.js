@@ -133,7 +133,7 @@ function settingsForm(over = {}) {
   ok('public page 200', r.status === 200);
   ok('shows salon name', r.text.includes('Frizerstvo Berni'));
   ok('shows call-to-book phone', r.text.includes('031 123 456'));
-  ok('has POKLIČITE ZA TERMIN button', r.text.includes('POKLIČITE ZA TERMIN'));
+  ok('has a call-to-book button', r.text.includes('Pokličite za termin'));
   ok('phone is a tel: link', r.text.includes('href="tel:031123456"'));
   ok('lists service with duration and price',
     r.text.includes('Žensko striženje') && r.text.includes('45 min') && r.text.includes('€25.00'));
