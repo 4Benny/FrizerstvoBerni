@@ -30,7 +30,8 @@ example services, products and customers.
 
 **[SETUP.md](SETUP.md) is the full guide** — uploading to a server, running it,
 login details, SMS, backups, updating and troubleshooting.
-`deploy/setup.sh` does a fresh Ubuntu server in one command.
+`deploy/setup.sh` does a fresh Ubuntu server in one command. The live server
+(Oracle Cloud, salon.dormy.si) is described in [deploy/ORACLE.md](deploy/ORACLE.md).
 
 **[domain.md](domain.md)** covers getting a domain and making the app reachable
 from outside — including why a static *local* IP is not what an SMS provider
