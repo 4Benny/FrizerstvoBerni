@@ -593,6 +593,51 @@ function settingsForm(over = {}) {
   ok('public shows about text', r.text.includes('Strižemo lase.'));
   ok('about splits paragraphs', r.text.includes('Drugi odstavek besedila predstavitve salona.'));
   ok('public shows Saturday short hours', r.text.includes('13:00'));
+  ok('hero names the run of open days', r.text.includes('Odprto od ponedeljka do sobote.'));
+  {
+    // Slovene count forms: 1 storitev, 2 storitvi, 3–4 storitve, 5+ storitev.
+    const m = /(\d+) (storitev|storitvi|storitve)(?: v|,)/.exec(r.text);
+    const n = m ? Number(m[1]) % 100 : -1;
+    const want = n === 1 ? 'storitev' : n === 2 ? 'storitvi' : n === 3 || n === 4 ? 'storitve' : 'storitev';
+    ok('price list counts services in the right form', m && m[2] === want, m && m[0]);
+  }
+  ok('without online booking the CTA does not offer a calendar',
+    !r.text.includes('Poglejte, kaj je prosto.') && r.text.includes('Pokličite nas.'));
+  ok('no salon-specific notes when none are set',
+    !r.text.includes('Vinka Cajnka') && !r.text.includes('Wi-Fi'));
+
+  section('website copy from Nastavitve');
+  r = await req('/app/settings', { method: 'POST', form: settingsForm({
+    legal_name: 'Bernarda Hrovat s.p.',
+    location_note: 'Ob dvorani, brezplačno parkirišče.',
+    contact_note: 'Brezplačen Wi-Fi.',
+    highlight_2_title: 'Z vami od leta 2008',
+    highlight_2_text: 'Izkušnje nadgrajujemo.',
+    service_card_1_title: 'Striženje las',
+    service_card_1_points: 'Moško striženje\nŽensko striženje',
+    mode_6: 'text', text_6: 'Po dogovoru', open_6: '', close_6: '',
+  }) });
+  ok('website copy saved', r.status === 302, r.text.slice(0, 200));
+  r = await req('/');
+  ok('location note shown', r.text.includes('Ob dvorani, brezplačno parkirišče.'));
+  ok('contact note shown', r.text.includes('Brezplačen Wi-Fi.'));
+  ok('highlight shown', r.text.includes('Z vami od leta 2008') && r.text.includes('Izkušnje nadgrajujemo.'));
+  ok('written service card shown with its bullets',
+    r.text.includes('Striženje las') && r.text.includes('Žensko striženje'));
+  ok('footer uses the legal name', r.text.includes('Bernarda Hrovat s.p.'));
+  ok('a by-arrangement Saturday is not in the open run',
+    r.text.includes('Odprto od ponedeljka do petka.') && !r.text.includes('do sobote.'));
+  r = await req('/narocanje');
+  ok('booking pages use the legal name too', r.text.includes('© ' + new Date().getFullYear() + ' Bernarda Hrovat s.p.'),
+    r.text.slice(-600));
+  ok('booking pages link the phone', r.text.includes('href="tel:031123456"'));
+  r = await req('/app/settings');
+  ok('settings page keeps the website copy',
+    r.text.includes('value="Ob dvorani, brezplačno parkirišče."') && r.text.includes('value="Z vami od leta 2008"'));
+  r = await req('/app/settings', { method: 'POST', form: settingsForm() });
+  ok('website copy cleared', r.status === 302);
+  r = await req('/');
+  ok('cleared notes leave the page', !r.text.includes('Brezplačen Wi-Fi.'));
 
   section('opening hours by arrangement');
   r = await req('/app/settings', { method: 'POST', form: settingsForm({
@@ -698,6 +743,22 @@ function settingsForm(over = {}) {
   ok('service created', r.status === 302);
   r = await req('/app/services');
   ok('new service appears', r.text.includes('Britje brade') && r.text.includes('€8.50'));
+  {
+    r = await req('/app/services/new', { method: 'POST', form: {
+      name: 'Ureditev obrvi', description: 'Ureditev', details: 'Oblikovanje po obliki obraza',
+      duration_min: '15', price: '6', active: '1', sort_order: '10',
+    }});
+    ok('service with details created', r.status === 302);
+    r = await req('/');
+    ok('price list shows the service details', r.text.includes('15 min · Oblikovanje po obliki obraza'));
+    r = await req('/app/services');
+    const m = /Ureditev obrvi[\s\S]{0,800}?\/app\/services\/(\d+)\/edit/.exec(r.text);
+    ok('new service has an edit link', !!m);
+    if (m) {
+      r = await req(`/app/services/${m[1]}/edit`);
+      ok('service form keeps the details', r.text.includes('value="Oblikovanje po obliki obraza"'));
+    }
+  }
   r = await req('/app/services/new', { method: 'POST', form: { name: '', duration_min: '30', price: '10' } });
   ok('service needs a name', r.status === 400);
   r = await req('/app/services/new', { method: 'POST', form: { name: 'X', duration_min: '1', price: '10' } });

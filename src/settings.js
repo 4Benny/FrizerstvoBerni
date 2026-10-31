@@ -31,35 +31,12 @@ const DEFAULTS = {
   // emblem, so the page never has an empty frame.
   hero_image_url: '',
 
-  /* --------------------------------------------------------- website copy */
-  // The four short selling points under the heading, and the three service
-  // cards below them. Nothing in the database can say what a salon is proud of
-  // or how it describes a group of services, so the salon writes these itself
-  // in Nastavitve. A card with an empty title is left off the page entirely,
-  // which is why these all start blank.
-  highlight_1_title: '',
-  highlight_1_text: '',
-  highlight_2_title: '',
-  highlight_2_text: '',
-  highlight_3_title: '',
-  highlight_3_text: '',
-  highlight_4_title: '',
-  highlight_4_text: '',
-  // Each card: a heading, a paragraph, one bullet per line, and a picture.
-  // With every title empty the website falls back to cards generated from the
-  // service categories, so the section still works untouched.
-  service_card_1_title: '',
-  service_card_1_text: '',
-  service_card_1_points: '',
-  service_card_1_image: '',
-  service_card_2_title: '',
-  service_card_2_text: '',
-  service_card_2_points: '',
-  service_card_2_image: '',
-  service_card_3_title: '',
-  service_card_3_text: '',
-  service_card_3_points: '',
-  service_card_3_image: '',
+  // Short notes in the contact section: under the address (directions,
+  // parking) and under the phone and e-mail (Wi-Fi, anything else). Empty
+  // leaves the line out. The highlights and service cards are added below
+  // DEFAULTS, generated from one list.
+  location_note: '',
+  contact_note: '',
   // Each weekday has a mode: 'open' (fixed times), 'closed', or 'text' (free
   // wording such as "Po dogovoru" shown in place of the times).
   opening_hours: JSON.stringify({
@@ -89,6 +66,58 @@ const DEFAULTS = {
   sms_reminder_hours_before: '24',
 };
 
+/* ------------------------------------------------------------ website copy */
+
+// The four short selling points under the heading, and the three service cards
+// below them. Nothing in the database can say what a salon is proud of or how
+// it describes a group of services, so the salon writes these itself in
+// Nastavitve. An entry with an empty title is left off the page entirely, which
+// is why these all start blank.
+//
+// This is the one place the set of fields is defined: the defaults, the form
+// handler (with each field's length limit), the form and the website all read
+// from here, so a fifth highlight or a fourth card is a change to a list below.
+const HIGHLIGHT_NUMBERS = [1, 2, 3, 4];
+const SERVICE_CARD_NUMBERS = [1, 2, 3];
+
+// key -> the length the form cuts it to.
+const COPY_FIELDS = {};
+for (const n of HIGHLIGHT_NUMBERS) {
+  COPY_FIELDS[`highlight_${n}_title`] = 120;
+  COPY_FIELDS[`highlight_${n}_text`] = 400;
+}
+// Each card: a heading, a paragraph, one bullet per line, and a picture. With
+// every title empty the website falls back to cards generated from the service
+// categories, so the section still works untouched.
+for (const n of SERVICE_CARD_NUMBERS) {
+  COPY_FIELDS[`service_card_${n}_title`] = 120;
+  COPY_FIELDS[`service_card_${n}_text`] = 600;
+  COPY_FIELDS[`service_card_${n}_points`] = 600;
+  COPY_FIELDS[`service_card_${n}_image`] = 300;
+}
+for (const key of Object.keys(COPY_FIELDS)) DEFAULTS[key] = '';
+
+/** The highlights the salon filled in, in order, each { title, text }. */
+function highlights(values) {
+  return HIGHLIGHT_NUMBERS.map((n) => ({
+    title: String(values[`highlight_${n}_title`] || '').trim(),
+    text: String(values[`highlight_${n}_text`] || '').trim(),
+  })).filter((h) => h.title);
+}
+
+/** The service cards the salon filled in, each { title, text, image, points }. */
+function serviceCards(values) {
+  return SERVICE_CARD_NUMBERS.map((n) => ({
+    title: String(values[`service_card_${n}_title`] || '').trim(),
+    text: String(values[`service_card_${n}_text`] || '').trim(),
+    image: String(values[`service_card_${n}_image`] || '').trim(),
+    points: String(values[`service_card_${n}_points`] || '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean),
+  })).filter((c) => c.title);
+}
+
 const DAY_KEYS = ['1', '2', '3', '4', '5', '6', '0'];
 const DAY_NAMES = {
   1: 'Ponedeljek',
@@ -117,15 +146,30 @@ function getInt(key) {
   return Number.isFinite(n) ? n : parseInt(DEFAULTS[key], 10);
 }
 
+const upsert = db.prepare(
+  `INSERT INTO settings (key, value) VALUES (?, ?)
+   ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+);
+
 function set(key, value) {
-  db.prepare(
-    `INSERT INTO settings (key, value) VALUES (?, ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
-  ).run(key, String(value == null ? '' : value));
+  upsert.run(key, String(value == null ? '' : value));
 }
 
+/**
+ * Saves several settings at once, all or nothing. The settings form posts about
+ * fifty keys: one transaction is one commit instead of fifty, and a failure
+ * part-way leaves the previous settings intact instead of half-overwritten.
+ * node:sqlite has no transaction() helper, so the boundary is explicit.
+ */
 function setMany(obj) {
-  for (const [key, value] of Object.entries(obj)) set(key, value);
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    for (const [key, value] of Object.entries(obj)) set(key, value);
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
 }
 
 /**
@@ -188,6 +232,11 @@ function openingHoursList() {
 
 module.exports = {
   DEFAULTS,
+  HIGHLIGHT_NUMBERS,
+  SERVICE_CARD_NUMBERS,
+  COPY_FIELDS,
+  highlights,
+  serviceCards,
   DAY_KEYS,
   DAY_NAMES,
   all,

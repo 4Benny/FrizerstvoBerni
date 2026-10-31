@@ -3,9 +3,9 @@
 <footer class="site-foot">
   <div class="padding-global"><div class="container-large"><div class="padding-section-medium">
     <div class="site-foot_bottom" style="margin-top:0;padding-top:0;border-top:0">
-      <p>© <%= new Date().getFullYear() %> <%= settings.salon_name %></p>
+      <p>© <%= new Date().getFullYear() %> <%= settings.legal_name || settings.salon_name %></p>
       <% if (settings.phone) { %>
-        <p><a href="tel:<%= settings.phone.replace(/\s/g, '') %>"><%= settings.phone %></a></p>
+        <p><a href="tel:<%= util.telDigits(settings.phone) %>"><%= settings.phone %></a></p>
       <% } %>
     </div>
   </div></div></div>

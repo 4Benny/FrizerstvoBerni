@@ -24,7 +24,11 @@
 <% if (!days.length) { %>
   <p class="booking-empty">
     V naslednjih tednih ni prostega termina za to storitev.
-    Pokličite nas na <a href="tel:<%= settings.phone.replace(/\s/g, '') %>"><%= settings.phone %></a>.
+    <% if (settings.phone) { %>
+      Pokličite nas na <a href="tel:<%= util.telDigits(settings.phone) %>"><%= settings.phone %></a>.
+    <% } else { %>
+      Pokličite nas ali se oglasite v salonu.
+    <% } %>
   </p>
 <% } else { %>
   <div class="booking-days" role="group" aria-label="Datum">

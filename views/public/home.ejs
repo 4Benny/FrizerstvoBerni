@@ -2,19 +2,33 @@
   // Everything on this page comes from the settings table and the services
   // table, so the salon changes its own website from Nastavitve without anyone
   // editing a template.
-  const phoneDigits = settings.phone ? settings.phone.replace(/\s/g, '') : '';
+  const phoneDigits = util.telDigits(settings.phone);
   const today = hours.find(function (d) { return d.isToday; });
 
-  // "Odprto od ponedeljka do sobote" — the run of open days, read off the
-  // opening hours rather than written down anywhere, so it stays true when the
-  // salon changes them. Only stated when the open days are one unbroken run.
+  // Slovene counts take one of three forms: 1 storitev, 2 storitvi, 3–4
+  // storitve, 5+ storitev — and the cycle repeats every hundred (101 storitev,
+  // 102 storitvi). forms = [one, two, few, many].
+  const plural = function (count, forms) {
+    const n = Math.abs(count) % 100;
+    if (n === 1) return forms[0];
+    if (n === 2) return forms[1];
+    if (n === 3 || n === 4) return forms[2];
+    return forms[3];
+  };
+  const SERVICE_FORMS = ['storitev', 'storitvi', 'storitve', 'storitev'];
+
+  // "Odprto od ponedeljka do sobote" — the run of days with regular hours, read
+  // off the opening hours rather than written down anywhere, so it stays true
+  // when the salon changes them. Only stated when those days are one unbroken
+  // run. A 'text' day ("Po dogovoru") has no regular hours, so it does not
+  // count: it stays in the table below, but the sentence does not promise it.
   // "od ponedeljka do sobote" needs the genitive, which Slovene does not form
   // by adding a suffix, so the seven forms are simply listed.
   const DAY_GENITIVE = {
     1: 'ponedeljka', 2: 'torka', 3: 'srede', 4: 'četrtka',
     5: 'petka', 6: 'sobote', 0: 'nedelje',
   };
-  const openDays = hours.filter(function (d) { return d.mode !== 'closed'; });
+  const openDays = hours.filter(function (d) { return d.mode === 'open'; });
   const openRun =
     openDays.length > 1 &&
     hours.indexOf(openDays[openDays.length - 1]) - hours.indexOf(openDays[0]) === openDays.length - 1
@@ -58,34 +72,11 @@
 
   const bookHref = '/narocanje';
 
-  // The picture beside the heading, and the four selling points and three
-  // service cards below it, are all written in Nastavitve. An entry with no
-  // title is simply left out, so a salon that fills in two of the four gets
-  // two.
+  // The picture beside the heading, and the selling points (`highlights`) and
+  // service cards (`writtenCards`) below it, are all written in Nastavitve and
+  // read by settings.highlights() / settings.serviceCards(). An entry with no
+  // title is simply left out, so a salon that fills in two of the four gets two.
   const heroImage = settings.hero_image_url || settings.emblem_url;
-
-  const highlights = [1, 2, 3, 4]
-    .map(function (n) {
-      return {
-        title: (settings['highlight_' + n + '_title'] || '').trim(),
-        text: (settings['highlight_' + n + '_text'] || '').trim(),
-      };
-    })
-    .filter(function (h) { return h.title; });
-
-  const writtenCards = [1, 2, 3]
-    .map(function (n) {
-      return {
-        title: (settings['service_card_' + n + '_title'] || '').trim(),
-        text: (settings['service_card_' + n + '_text'] || '').trim(),
-        image: (settings['service_card_' + n + '_image'] || '').trim(),
-        points: (settings['service_card_' + n + '_points'] || '')
-          .split('\n')
-          .map(function (line) { return line.trim(); })
-          .filter(Boolean),
-      };
-    })
-    .filter(function (c) { return c.title; });
 
   // Cards the salon wrote win. With none written the page falls back to cards
   // built from the price-list categories — but only from two categories up, as
@@ -97,10 +88,9 @@
           const prices = g.items.map(function (s) { return s.price_cents; }).filter(function (c) { return c > 0; });
           const from = prices.length ? Math.min.apply(null, prices) : null;
           const count = g.items.length;
-          const word = count === 1 ? 'storitev' : count === 2 ? 'storitvi' : count < 5 ? 'storitve' : 'storitev';
           return {
             title: g.name,
-            text: count + ' ' + word + (from !== null ? ', od ' + util.formatMoney(from) : '') + '.',
+            text: count + ' ' + plural(count, SERVICE_FORMS) + (from !== null ? ', od ' + util.formatMoney(from) : '') + '.',
             image: '',
             points: g.items.slice(0, 3).map(function (s) { return s.name; }),
           };
@@ -375,7 +365,7 @@
         <h2>Cene in trajanja storitev</h2>
         <% if (services.length) { %>
           <p class="text-color-muted max-width-medium margin-center">
-            <%= services.length %> storitev<% if (namedGroups.length > 1) { %> v
+            <%= services.length %> <%= plural(services.length, SERVICE_FORMS) %><% if (namedGroups.length > 1) { %> v
             <%= namedGroups.length %> sklopih<% } %>, s trajanjem in ceno.
           </p>
         <% } %>
@@ -508,9 +498,9 @@
             <div>
               <h3>Kje smo</h3>
               <p><%= settings.address %><% if (settings.address && settings.city) { %><br><% } %><%= settings.city %></p>
-              <p class="text-size-small text-color-muted" style="margin-top:.5rem">
-                V neposredni bližini dvorane Vinka Cajnka, z zagotovljenim brezplačnim parkiriščem.
-              </p>
+              <% if (settings.location_note) { %>
+                <p class="text-size-small text-color-muted" style="margin-top:.5rem"><%= settings.location_note %></p>
+              <% } %>
               <% if (settings.map_url) { %>
                 <a class="contact_map" href="<%= settings.map_url %>" target="_blank" rel="noopener">Odprite zemljevid</a>
               <% } %>
@@ -528,9 +518,9 @@
                 <% if (phoneDigits && settings.email) { %><br><% } %>
                 <% if (settings.email) { %><a href="mailto:<%= settings.email %>"><%= settings.email %></a><% } %>
               </p>
-              <p class="text-size-small text-color-muted" style="margin-top:.5rem">
-                V salonu je na razpolago Wi-Fi dostopna točka za brezplačni brezžični internet.
-              </p>
+              <% if (settings.contact_note) { %>
+                <p class="text-size-small text-color-muted" style="margin-top:.5rem"><%= settings.contact_note %></p>
+              <% } %>
             </div>
           </div>
         <% } %>
@@ -558,16 +548,21 @@
   <section>
     <div class="padding-global"><div class="container-large"><div class="padding-section-large">
       <div class="cta_inner">
-        <h2><span>Termin še ta teden?</span> Poglejte, kaj je prosto.</h2>
+        <%
+          // "Poglejte, kaj je prosto" only holds when there is a calendar to
+          // look at; otherwise the heading says what the visitor can do.
+        %>
+        <h2><span>Termin še ta teden?</span>
+          <% if (bookingEnabled) { %>Poglejte, kaj je prosto.<% } else if (phoneDigits) { %>Pokličite nas.<% } else { %>Oglasite se pri nas.<% } %></h2>
         <p class="text-size-large text-color-muted">
           <% if (bookingEnabled && phoneDigits) { %>
             V spletnem koledarju vidite proste ure, lahko pa tudi <a href="tel:<%= phoneDigits %>">pokličete <%= settings.phone %></a>.
           <% } else if (bookingEnabled) { %>
             V spletnem koledarju vidite proste ure.
           <% } else if (phoneDigits) { %>
-            Pokličite nas in skupaj poiščemo uro, ki vam ustreza.
+            Skupaj poiščemo uro, ki vam ustreza.
           <% } else { %>
-            Oglasite se v salonu in dogovorimo se za termin.
+            V salonu se dogovorimo za termin, ki vam ustreza.
           <% } %>
         </p>
         <% if (bookingEnabled) { %>
