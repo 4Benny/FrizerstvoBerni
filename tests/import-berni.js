@@ -94,6 +94,8 @@ settings.setMany({
   // a local number dials correctly from a Slovenian phone.
   phone: '031 331 636',
   email: 'frizerstvo.berni@gmail.com',
+  location_note: 'Ob dvorani Vinka Cajnka, z brezplačnim parkiriščem.',
+  contact_note: 'V salonu je na voljo brezplačen Wi-Fi.',
   logo_url: '/img/logo.png',
   emblem_url: '/img/emblem.jpg',
   // Ponedeljek, sreda, petek 8–14 · torek, četrtek 8–18 · sobota 8–12 · nedelja zaprto
@@ -114,9 +116,11 @@ settings.setMany({
   // start with. Pictures are left empty on purpose — the salon has no photo
   // library, so the website falls back to the emblem and to marks in the
   // salon's colour until real photographs are added.
-  highlight_1_title: 'Naročanje prek spleta',
+  // Highlights always show, but public booking stays off until SMS works, so
+  // this one must not promise online booking.
+  highlight_1_title: 'Trajanje in cena vnaprej',
   highlight_1_text:
-    'Izberete želene storitve in se naročite. Ob vsaki storitvi sta izpisana trajanje in cena.',
+    'Ob vsaki storitvi v ceniku sta izpisana trajanje in cena, zato veste, kaj vas čaka.',
   highlight_2_title: 'Z vami od leta 2008',
   highlight_2_text:
     'Skozi leta pridobljene izkušnje nenehno nadgrajujemo s konstantnim izobraževanjem.',

@@ -80,7 +80,7 @@
       Štirje kratki poudarki pod naslovom — na primer naročanje, izkušnje, parkirišče ali
       izdelki, ki jih uporabljate. Poudarek brez naslova se na strani ne pokaže.
     </p>
-    <% [1, 2, 3, 4].forEach(function (n) { %>
+    <% highlightNumbers.forEach(function (n) { %>
       <div class="form-row">
         <div class="field">
           <label for="highlight_<%= n %>_title">Naslov <%= n %></label>
@@ -104,7 +104,7 @@
       Trije predstavitveni bloki nad cenikom. Kartica brez naslova se ne pokaže; če so prazni
       vsi trije, spletna stran sama sestavi kartice iz skupin v ceniku.
     </p>
-    <% [1, 2, 3].forEach(function (n) { %>
+    <% cardNumbers.forEach(function (n, i) { %>
       <div class="field">
         <label for="service_card_<%= n %>_title">Naslov kartice <%= n %></label>
         <input id="service_card_<%= n %>_title" name="service_card_<%= n %>_title" type="text"
@@ -137,7 +137,7 @@
           </div>
         <% } %>
       </div>
-      <% if (n < 3) { %><hr><% } %>
+      <% if (i < cardNumbers.length - 1) { %><hr><% } %>
     <% }); %>
   </section>
 
@@ -161,6 +161,20 @@
       <div class="field">
         <label for="city">Kraj</label>
         <input id="city" name="city" type="text" value="<%= values.city %>">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label for="location_note">Opomba pod naslovom</label>
+        <input id="location_note" name="location_note" type="text" value="<%= values.location_note %>"
+               placeholder="Ob dvorani Vinka Cajnka, brezplačno parkirišče.">
+        <p class="hint">Kako nas najdete, parkiranje. Če je prazno, se ne izpiše.</p>
+      </div>
+      <div class="field">
+        <label for="contact_note">Opomba pod kontaktom</label>
+        <input id="contact_note" name="contact_note" type="text" value="<%= values.contact_note %>"
+               placeholder="V salonu je na voljo brezplačen Wi-Fi.">
+        <p class="hint">Na primer Wi-Fi. Če je prazno, se ne izpiše.</p>
       </div>
     </div>
     <div class="form-row">

@@ -197,6 +197,14 @@ function fullName(person) {
   return `${person.first_name || ''} ${person.last_name || ''}`.trim();
 }
 
+/**
+ * A phone number as written ("031 331 636") -> what a tel: link dials
+ * ("031331636"). Empty for no number, so templates can test the result.
+ */
+function telDigits(phone) {
+  return String(phone == null ? '' : phone).replace(/\s/g, '');
+}
+
 function str(value, max = 2000) {
   return String(value == null ? '' : value).trim().slice(0, max);
 }
@@ -231,6 +239,7 @@ module.exports = {
   verifyPassword,
   loyalty,
   fullName,
+  telDigits,
   str,
   boolInt,
   DAY_SHORT,

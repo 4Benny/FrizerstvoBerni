@@ -99,6 +99,40 @@ ok('a setting saved before the upgrade is still readable',
 ok('an empty stored setting still overrides the new default',
   settings.get('logo_url') === '', settings.get('logo_url'));
 
+section('saving several settings is all or nothing');
+
+settings.setMany({ slogan: 'Prvi', city: 'Prvo mesto' });
+ok('setMany saves every key', settings.get('slogan') === 'Prvi' && settings.get('city') === 'Prvo mesto');
+let threw = false;
+try {
+  settings.setMany({
+    slogan: 'Drugi',
+    // A value that cannot be turned into text stops the save part-way.
+    city: { toString() { throw new Error('bad value'); } },
+  });
+} catch {
+  threw = true;
+}
+ok('a failing value is reported', threw);
+ok('a failed save leaves the earlier keys untouched', settings.get('slogan') === 'Prvi', settings.get('slogan'));
+settings.setMany({ slogan: 'Tretji' });
+ok('the next save works after a rollback', settings.get('slogan') === 'Tretji', settings.get('slogan'));
+
+section('website copy fields come from one list');
+
+ok('every highlight and card field has a default',
+  Object.keys(settings.COPY_FIELDS).every((k) => settings.DEFAULTS[k] === ''));
+ok('the field list follows the numbers',
+  Object.keys(settings.COPY_FIELDS).length ===
+    settings.HIGHLIGHT_NUMBERS.length * 2 + settings.SERVICE_CARD_NUMBERS.length * 4);
+const copy = { highlight_2_title: ' Parkirišče ', highlight_2_text: 'Brezplačno.',
+  service_card_1_title: 'Striženje', service_card_1_points: 'Ena\n\n  Dve  \n' };
+ok('only highlights with a title are shown',
+  JSON.stringify(settings.highlights(copy)) === JSON.stringify([{ title: 'Parkirišče', text: 'Brezplačno.' }]),
+  settings.highlights(copy));
+ok('card bullets are one per line, blanks dropped',
+  JSON.stringify(settings.serviceCards(copy)[0].points) === '["Ena","Dve"]', settings.serviceCards(copy));
+
 settings.set('sms_enabled', '1');
 const queued = sms.enqueue('booked', { id: 1, first_name: 'Ana', phone: '031 123 456' }, {
   id: 99, date: '2026-09-01', start_min: 600, service_name: 'Striženje',

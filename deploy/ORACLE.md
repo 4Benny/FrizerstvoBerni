@@ -24,7 +24,11 @@ Vrata 22, 80 in 443 so odprta na dveh mestih in obe morata ostati:
 
 1. **Oracle → VCN → Default Security List** (ingress pravila 0.0.0.0/0 TCP 22, 80, 443);
 2. **iptables na strežniku** (`/etc/iptables/rules.v4`, Oraclova slika privzeto
-   zavrne vse razen 22).
+   zavrne vse razen 22). `deploy/setup.sh` doda 80 in 443 pred pravilo REJECT in
+   shrani z `netfilter-persistent save`.
+
+Na tem strežniku **ne nameščajte ufw**: odstrani paket iptables-persistent in z
+njim Oraclova pravila, Oracle pa ufw na svojih slikah Ubuntu odsvetuje.
 
 ## Posodobitev kode
 

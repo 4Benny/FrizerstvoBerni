@@ -77,10 +77,11 @@ info "$(date)"
 say "Pripravljam sistemskega uporabnika in mape"
 id -u salon >/dev/null 2>&1 || adduser --system --group --home /opt/salon salon
 install -d -o salon -g salon /opt/salon "$DATA_DIR"
-# Sem gre potrdilo od Telemacha. Mapa mora obstajati že zdaj in pripadati
-# uporabniku salon, sicer potrdilo pristane v lasti roota in ga storitev na dan
-# vklopa ne more prebrati. 700, ker je notri zasebni ključ.
-install -d -o salon -g salon -m 700 "$SECRETS_DIR"
+# Sem gre potrdilo od Telemacha. Lastnik je root, skupina salon, 750 — točno
+# tako, kot predpisujeta GOLIVE.md in SETUP.md: storitev potrdilo bere, ne more
+# pa ga zamenjati ali izbrisati. Ker skripto poganjamo tudi za posodobitve,
+# mora ob vsakem zagonu nastaviti isto, sicer bi razveljavila to zaščito.
+install -d -o root -g salon -m 750 "$SECRETS_DIR"
 
 # ---------------------------------------------------------------------- koda --
 
@@ -215,11 +216,27 @@ systemctl reload nginx
 # --------------------------------------------------------------- požarni zid --
 
 say "Nastavljam požarni zid"
-if ! command -v ufw >/dev/null 2>&1; then
-  apt-get install -y -qq ufw
-fi
-
-if command -v ufw >/dev/null 2>&1; then
+# ufw tukaj nikoli ne nameščamo. Oraclove slike Ubuntu imajo pravila v
+# /etc/iptables/rules.v4 (paket iptables-persistent), vključno z Oraclovimi
+# pravili za lastne storitve. Namestitev ufw ta paket odstrani, Oracle pa
+# izrecno odsvetuje ufw na svojih slikah. Zato: če je iptables-persistent,
+# dodamo pravila tja; ufw uporabimo le, če je na strežniku že bil.
+if command -v netfilter-persistent >/dev/null 2>&1 && [[ -f /etc/iptables/rules.v4 ]]; then
+  for port in 80 443; do
+    if ! iptables -C INPUT -p tcp -m state --state NEW --dport "$port" -j ACCEPT 2>/dev/null; then
+      # Pred prvo pravilo REJECT, sicer ga paket nikoli ne doseže.
+      reject_at=$(iptables -L INPUT --line-numbers -n | awk '$2 == "REJECT" { print $1; exit }')
+      if [[ -n "$reject_at" ]]; then
+        iptables -I INPUT "$reject_at" -p tcp -m state --state NEW --dport "$port" -j ACCEPT
+      else
+        iptables -A INPUT -p tcp -m state --state NEW --dport "$port" -j ACCEPT
+      fi
+    fi
+  done
+  netfilter-persistent save >/dev/null
+  info "iptables: odprta so vrata 22 (SSH), 80 in 443; vse ostalo zavrne Oraclovo privzeto pravilo."
+  info "Aplikacija posluša le na 127.0.0.1, zato vrata ${PORT} od zunaj niso dosegljiva."
+elif command -v ufw >/dev/null 2>&1; then
   # Privzeto zaprto: ven vse, noter samo SSH in splet. Brez tega bi bila
   # aplikacija dosegljiva tudi neposredno na vratih ${PORT}, mimo nginxa in TLS.
   ufw default deny incoming >/dev/null 2>&1 || true
@@ -231,7 +248,7 @@ if command -v ufw >/dev/null 2>&1; then
   info "Odprta so samo vrata 22 (SSH), 80 in 443."
   info "Vrata ${PORT} so zaprta, aplikacija posluša le na 127.0.0.1."
 else
-  warn "ufw ni na voljo — vrata ${PORT} zaprite sami."
+  warn "Ni ne iptables-persistent ne ufw — vrata 80 in 443 odprite sami."
   warn "Aplikacija posluša samo na 127.0.0.1, zato od zunaj ni dosegljiva."
 fi
 

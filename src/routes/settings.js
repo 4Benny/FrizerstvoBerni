@@ -29,20 +29,18 @@ const TEXT_FIELDS = {
   logo_url: 300,
   emblem_url: 300,
   hero_image_url: 300,
+  location_note: 300,
+  contact_note: 300,
+  // The highlights and service cards, defined once in src/settings.js.
+  ...settings.COPY_FIELDS,
 };
 
-// The website copy the salon writes itself: four selling points and three
-// service cards. Added here so the list above stays readable.
-for (const n of [1, 2, 3, 4]) {
-  TEXT_FIELDS[`highlight_${n}_title`] = 120;
-  TEXT_FIELDS[`highlight_${n}_text`] = 400;
-}
-for (const n of [1, 2, 3]) {
-  TEXT_FIELDS[`service_card_${n}_title`] = 120;
-  TEXT_FIELDS[`service_card_${n}_text`] = 600;
-  TEXT_FIELDS[`service_card_${n}_points`] = 600;
-  TEXT_FIELDS[`service_card_${n}_image`] = 300;
-}
+// What the form needs besides the values: how many highlights and cards to
+// draw, from the same list the defaults and the handler use.
+const formLayout = {
+  highlightNumbers: settings.HIGHLIGHT_NUMBERS,
+  cardNumbers: settings.SERVICE_CARD_NUMBERS,
+};
 
 router.get('/', (req, res) => {
   res.render('staff/settings', {
@@ -51,6 +49,7 @@ router.get('/', (req, res) => {
     hours: settings.openingHoursList(),
     error: null,
     smsDriver: sms.DRIVER,
+    ...formLayout,
   });
 });
 
@@ -72,6 +71,7 @@ router.post('/', (req, res) => {
       hours: settings.openingHoursList(),
       error,
       smsDriver: sms.DRIVER,
+      ...formLayout,
     });
 
   if (!updates.salon_name) return rerender('Vpišite ime salona.');
